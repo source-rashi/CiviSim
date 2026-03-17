@@ -10,7 +10,8 @@ class Citizen:
         caste,
         education,
         location,
-        traits
+        traits,
+        extra_attributes=None
     ):
 
         self.cid = cid
@@ -22,6 +23,7 @@ class Citizen:
         self.education = education
         self.location = location
         self.traits = traits
+        self.extra_attributes = extra_attributes or {}
 
         # Simulation states
         self.happiness = 0.5

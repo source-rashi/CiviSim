@@ -2,11 +2,29 @@ import random
 from population.citizen import Citizen
 
 
-def generate_population(size):
+def generate_population(size, required_attributes=None):
 
     population = []
 
     for i in range(size):
+
+        extra = {}
+
+        if required_attributes:
+
+            for attr in required_attributes:
+
+                if attr == "caste":
+                    extra["caste"] = random.choice(["general", "obc", "sc", "st"])
+
+                elif attr == "student_status":
+                    extra["student_status"] = random.choice([True, False])
+
+                elif attr == "land_size":
+                    extra["land_size"] = round(random.uniform(0.5, 5.0), 2)
+
+                elif attr == "loan":
+                    extra["loan"] = random.randint(10000, 100000)
 
         citizen = Citizen(
 
@@ -31,12 +49,7 @@ def generate_population(size):
                 "unemployed"
             ]),
 
-            caste=random.choice([
-                "general",
-                "obc",
-                "sc",
-                "st"
-            ]),
+            caste=extra.get("caste", random.choice(["general", "obc", "sc", "st"])),
 
             education=random.choice([
                 "school",
@@ -54,7 +67,9 @@ def generate_population(size):
                 "risk_tolerance": random.random(),
                 "openness": random.random(),
                 "political_leaning": random.random()
-            }
+            },
+
+            extra_attributes=extra
 
         )
 
