@@ -100,6 +100,22 @@ if st.button("Run Simulation"):
 
         st.info(f"Simulated reactions for {len(reactions)} citizens using Gemini LLM")
 
+        # Display diary entries
+        st.subheader("Citizen Reactions (Sample)")
+
+        for i, reaction in enumerate(reactions[:5]):
+            with st.container(border=True):
+                st.markdown(f"**Citizen {reaction['citizen_id'] + 1} Diary:**")
+                st.write(reaction.get("diary_entry", "No response generated"))
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Happiness Change", f"{reaction.get('happiness_change', 0):.2f}")
+                with col2:
+                    st.metric("Support Change", f"{reaction.get('support_change', 0):.2f}")
+                with col3:
+                    st.metric("Income Change", f"₹{reaction.get('income_change', 0):.0f}")
+
 st.divider()
 
 col1, col2 = st.columns(2)
