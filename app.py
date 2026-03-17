@@ -18,6 +18,7 @@ from ai_models.training_model import (
     encode_policy
 )
 from ai_models.reaction_predictor import predict_reaction
+from simulation.simulation_engine import run_simulation
 
 st.set_page_config(
     page_title="CIVISIM",
@@ -34,6 +35,8 @@ policy = st.text_area(
     "Enter Policy Description",
     height=150
 )
+
+steps = st.slider("Simulation Steps", 5, 50, 10)
 
 if st.button("Run Simulation"):
 
@@ -195,14 +198,39 @@ if st.button("Run Simulation"):
             fig = px.histogram(support_changes, nbins=30, title="Policy Support Distribution")
             st.plotly_chart(fig, use_container_width=True)
 
-st.divider()
+        # Time-step simulation
+        st.divider()
+        st.subheader(f"Time-Step Simulation ({steps} steps)")
 
-col1, col2 = st.columns(2)
+        with st.spinner(f"Running {steps}-step simulation..."):
+            metrics = run_simulation(
+                population, model, steps, mean, std, policy_encoding
+            )
 
-with col1:
-    st.subheader("Average Happiness")
-    st.line_chart([0, 1, 2, 3])
+        st.success(f"Simulation complete: {steps} steps across {len(population):,} citizens")
 
-with col2:
-    st.subheader("Policy Support")
-    st.line_chart([3, 2, 5, 4])
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            fig = px.line(
+                y=metrics["happiness"],
+                labels={"x": "Step", "y": "Happiness"},
+                title="Happiness Over Time"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            fig = px.line(
+                y=metrics["support"],
+                labels={"x": "Step", "y": "Policy Support"},
+                title="Policy Support Over Time"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col3:
+            fig = px.line(
+                y=metrics["income"],
+                labels={"x": "Step", "y": "Income"},
+                title="Income Over Time"
+            )
+            st.plotly_chart(fig, use_container_width=True)
