@@ -12,6 +12,11 @@ from ai_models.llm_interface import (
     simulate_citizen_reaction,
     parse_llm_output
 )
+from ai_models.training_model import (
+    create_training_data,
+    train_model
+)
+from ai_models.reaction_predictor import predict_reaction
 
 st.set_page_config(
     page_title="CIVISIM",
@@ -119,6 +124,72 @@ if st.button("Run Simulation"):
                     st.metric("Support Change", f"{reaction.get('support_change', 0):.2f}")
                 with col3:
                     st.metric("Income Change", f"₹{reaction.get('income_change', 0):.0f}")
+
+        # Train neural network on LLM data
+        st.divider()
+        st.subheader("Training Neural Network for Full Population")
+
+        with st.spinner("Training neural network on LLM data..."):
+            X, y = create_training_data(sample_population, reactions)
+            model = train_model(X, y, epochs=100)
+
+        st.success(f"✓ Neural network trained on {len(reactions)} citizen samples")
+
+        # Apply neural network to entire population
+        st.subheader("Full Population Reaction Simulation (Using Neural Network)")
+
+        with st.spinner("Predicting reactions for all 10,000 citizens..."):
+            happiness_changes = []
+            support_changes = []
+            income_changes = []
+
+            for citizen in population:
+                pred = predict_reaction(model, citizen)
+                
+                happiness_delta = float(pred[0])
+                support_delta = float(pred[1])
+                income_delta = float(pred[2])
+                
+                citizen.update_state(
+                    happiness_delta,
+                    support_delta,
+                    income_delta
+                )
+                
+                happiness_changes.append(citizen.happiness)
+                support_changes.append(citizen.policy_support)
+                income_changes.append(citizen.income)
+
+        st.success(f"✓ Predicted reactions for {len(population)} citizens using neural network model")
+
+        # Display impact metrics
+        st.subheader("Population Impact Metrics")
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            avg_happiness = sum(happiness_changes) / len(happiness_changes)
+            st.metric("Average Happiness", f"{avg_happiness:.2f}")
+        with col2:
+            avg_support = sum(support_changes) / len(support_changes)
+            st.metric("Average Support", f"{avg_support:.2f}")
+        with col3:
+            avg_income = sum(income_changes) / len(income_changes)
+            st.metric("Average Income", f"₹{avg_income:.0f}")
+        with col4:
+            st.metric("Population Size", len(population))
+
+        # Display distribution of impact
+        st.subheader("Distribution of Citizen Reactions")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig = px.histogram(happiness_changes, nbins=30, title="Happiness Distribution")
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            fig = px.histogram(support_changes, nbins=30, title="Policy Support Distribution")
+            st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
