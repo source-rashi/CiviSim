@@ -1,4 +1,11 @@
 import streamlit as st
+import plotly.express as px
+from population.population_generator import generate_population
+from utils.metrics import (
+    occupation_distribution,
+    caste_distribution,
+    income_list
+)
 
 st.set_page_config(
     page_title="CIVISIM",
@@ -17,7 +24,44 @@ policy = st.text_area(
 )
 
 if st.button("Run Simulation"):
-    st.warning("Simulation engine not implemented yet.")
+
+    population = generate_population(10000)
+
+    occ_dist = occupation_distribution(population)
+    caste_dist = caste_distribution(population)
+    incomes = income_list(population)
+
+    st.success("Population Generated Successfully")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.subheader("Occupation Distribution")
+
+        fig = px.bar(
+            x=list(occ_dist.keys()),
+            y=list(occ_dist.values())
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+
+        st.subheader("Caste Distribution")
+
+        fig = px.pie(
+            names=list(caste_dist.keys()),
+            values=list(caste_dist.values())
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Income Distribution")
+
+    fig = px.histogram(incomes, nbins=30)
+
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
