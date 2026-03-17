@@ -22,3 +22,13 @@ def average_income(population):
 
     incomes = income_list(population)
     return sum(incomes) / len(incomes)
+
+
+def average_happiness(population):
+
+    return sum(c.happiness for c in population) / len(population)
+
+
+def average_support(population):
+
+    return sum(c.policy_support for c in population) / len(population)
