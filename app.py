@@ -179,6 +179,7 @@ if run_btn:
 
         c1, c2 = st.columns(2)
         with c1:
+            st.metric("Citizen ID", citizen.cid)
             st.write("Age:", citizen.age)
             st.write("Income:", int(citizen.income))
             st.write("Occupation:", citizen.occupation)
@@ -186,6 +187,8 @@ if run_btn:
         with c2:
             st.write("Happiness:", round(citizen.happiness, 3))
             st.write("Policy Support:", round(citizen.policy_support, 3))
+
+        with st.expander("View Traits and Extra Attributes"):
             st.write("Traits:", citizen.traits)
             st.write("Extra Attributes:", citizen.extra_attributes)
 
