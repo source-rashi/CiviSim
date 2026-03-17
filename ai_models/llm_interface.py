@@ -24,3 +24,32 @@ def generate_response(prompt):
     except Exception as e:
         return f"Error calling Gemini API: {str(e)}"
 
+
+def simulate_citizen_reaction(citizen, policy):
+
+    prompt = f"""
+    You are a citizen in a simulated society.
+
+    Profile:
+    Age: {citizen.age}
+    Occupation: {citizen.occupation}
+    Income: {citizen.income}
+    Location: {citizen.location}
+    Traits: {citizen.traits}
+
+    Additional Attributes: {citizen.extra_attributes}
+
+    Policy:
+    {policy}
+
+    Respond with a JSON object containing:
+    - happiness_change: number between -1 and 1
+    - support_change: number between -1 and 1
+    - income_change: number (positive or negative)
+    - diary_entry: short paragraph (2-3 sentences) describing how this policy affects you
+
+    Output ONLY valid JSON, no other text.
+    """
+
+    return generate_response(prompt)
+
