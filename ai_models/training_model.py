@@ -48,3 +48,26 @@ class ReactionModel(nn.Module):
 
         return self.network(x)
 
+
+def train_model(X, y, epochs=100):
+
+    model = ReactionModel()
+
+    X_tensor = torch.tensor(X, dtype=torch.float32)
+    y_tensor = torch.tensor(y, dtype=torch.float32)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    loss_fn = nn.MSELoss()
+
+    for epoch in range(epochs):
+
+        predictions = model(X_tensor)
+
+        loss = loss_fn(predictions, y_tensor)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    return model
+
