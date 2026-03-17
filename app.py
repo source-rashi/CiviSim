@@ -4,7 +4,9 @@ from population.population_generator import generate_population
 from utils.metrics import (
     occupation_distribution,
     caste_distribution,
-    income_list
+    income_list,
+    group_by_attribute,
+    group_average_happiness
 )
 from policy_engine.policy_parser import parse_policy
 from policy_engine.policy_mapper import map_policy_to_attributes
@@ -17,7 +19,7 @@ from ai_models.training_model import (
     train_model,
     encode_policy
 )
-from ai_models.reaction_predictor import predict_reaction
+from ai_models.reaction_predictor import predict_batch
 from simulation.simulation_engine import run_simulation
 
 st.set_page_config(
@@ -25,193 +27,124 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("CIVISIM — Synthetic Policy Simulator")
+st.title("CIVISIM — Policy Simulation Dashboard")
+st.markdown("Analyze how policies impact a synthetic society.")
+st.divider()
 
-st.markdown(
-    "Test public policies on a virtual society."
-)
+top_col1, top_col2 = st.columns([2, 1])
 
-policy = st.text_area(
-    "Enter Policy Description",
-    height=150
-)
+with top_col1:
+    policy = st.text_area(
+        "Enter Policy",
+        height=120,
+        placeholder="Example: Increase scholarships for rural students and reduce tuition fees"
+    )
 
-steps = st.slider("Simulation Steps", 5, 50, 10)
+with top_col2:
+    steps = st.slider("Simulation Steps", 5, 50, 10)
+    run_btn = st.button("Run Simulation", use_container_width=True)
 
-if st.button("Run Simulation"):
+if run_btn:
 
     if not policy.strip():
         st.error("Please enter a policy description")
     else:
-        parsed_policy = parse_policy(policy)
+        with st.spinner("Running full simulation..."):
+            parsed_policy = parse_policy(policy)
+            attributes = map_policy_to_attributes(parsed_policy)
+            population = generate_population(10000, attributes)
 
-        attributes = map_policy_to_attributes(parsed_policy)
+            sample_size = min(50, len(population))
+            sample_population = population[:sample_size]
+            reactions = []
 
-        st.subheader("Policy Analysis")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Domain:**", parsed_policy["domain"].upper())
-        with col2:
-            st.write("**Relevant Attributes:**", ", ".join(attributes))
-
-        population = generate_population(10000, attributes)
-
-        occ_dist = occupation_distribution(population)
-        caste_dist = caste_distribution(population)
-        incomes = income_list(population)
-
-        st.success("Population Generated Successfully")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.subheader("Occupation Distribution")
-
-            fig = px.bar(
-                x=list(occ_dist.keys()),
-                y=list(occ_dist.values())
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-
-            st.subheader("Caste Distribution")
-
-            fig = px.pie(
-                names=list(caste_dist.keys()),
-                values=list(caste_dist.values())
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("Income Distribution")
-
-        fig = px.histogram(incomes, nbins=30)
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Simulate LLM reactions for sample population
-        st.divider()
-        st.subheader("Citizen Reaction Simulation (Sample)")
-
-        # Performance control: limit sample size to avoid excessive API calls
-        sample_size = min(50, len(population))
-        sample_population = population[:sample_size]
-        reactions = []
-
-        st.warning(f"⚠️ Simulating reactions for {sample_size} citizens. This will use Gemini API calls.")
-
-        with st.spinner("Simulating citizen reactions..."):
             for i, citizen in enumerate(sample_population):
                 raw_response = simulate_citizen_reaction(citizen, policy)
                 parsed_reaction = parse_llm_output(raw_response)
                 parsed_reaction["citizen_id"] = i
                 reactions.append(parsed_reaction)
 
-        st.success(f"✓ Simulated reactions for {len(reactions)} citizens using Gemini LLM")
-
-        # Display diary entries
-        st.subheader("Citizen Reactions (Sample)")
-
-        for i, reaction in enumerate(reactions[:5]):
-            with st.container(border=True):
-                st.markdown(f"**Citizen {reaction['citizen_id'] + 1} Diary:**")
-                st.write(reaction.get("diary_entry", "No response generated"))
-
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Happiness Change", f"{reaction.get('happiness_change', 0):.2f}")
-                with col2:
-                    st.metric("Support Change", f"{reaction.get('support_change', 0):.2f}")
-                with col3:
-                    st.metric("Income Change", f"₹{reaction.get('income_change', 0):.0f}")
-
-        # Train neural network on LLM data
-        st.divider()
-        st.subheader("Training Neural Network for Full Population")
-
-        with st.spinner("Training neural network on LLM data..."):
             X, y = create_training_data(sample_population, reactions, parsed_policy)
             model, mean, std = train_model(X, y, epochs=100)
 
-        st.success(f"✓ Neural network trained on {len(reactions)} citizen samples")
+            policy_encoding = encode_policy(parsed_policy)[0]
+            preds = predict_batch(model, population, mean, std, policy_encoding)
 
-        # Apply neural network to entire population
-        st.subheader("Full Population Reaction Simulation (Using Neural Network)")
-
-        # Get policy encoding for predictions
-        policy_encoding = encode_policy(parsed_policy)[0]
-
-        with st.spinner("Predicting reactions for all 10,000 citizens..."):
             happiness_changes = []
             support_changes = []
             income_changes = []
 
-            for citizen in population:
-                pred = predict_reaction(model, citizen, mean, std, policy_encoding)
-                
-                happiness_delta = float(pred[0])
-                support_delta = float(pred[1])
-                income_delta = float(pred[2])
-                
+            for citizen, pred in zip(population, preds):
                 citizen.update_state(
-                    happiness_delta,
-                    support_delta,
-                    income_delta
+                    float(pred[0]),
+                    float(pred[1]),
+                    float(pred[2])
                 )
-                
                 happiness_changes.append(citizen.happiness)
                 support_changes.append(citizen.policy_support)
                 income_changes.append(citizen.income)
 
-        st.success(f"✓ Predicted reactions for {len(population)} citizens using neural network model")
-
-        # Display impact metrics
-        st.subheader("Population Impact Metrics")
-
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            avg_happiness = sum(happiness_changes) / len(happiness_changes)
-            st.metric("Average Happiness", f"{avg_happiness:.2f}")
-        with col2:
-            avg_support = sum(support_changes) / len(support_changes)
-            st.metric("Average Support", f"{avg_support:.2f}")
-        with col3:
-            avg_income = sum(income_changes) / len(income_changes)
-            st.metric("Average Income", f"₹{avg_income:.0f}")
-        with col4:
-            st.metric("Population Size", len(population))
-
-        # Display distribution of impact
-        st.subheader("Distribution of Citizen Reactions")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig = px.histogram(happiness_changes, nbins=30, title="Happiness Distribution")
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            fig = px.histogram(support_changes, nbins=30, title="Policy Support Distribution")
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Time-step simulation
-        st.divider()
-        st.subheader(f"Time-Step Simulation ({steps} steps)")
-
-        with st.spinner(f"Running {steps}-step simulation..."):
             metrics = run_simulation(
                 population, model, steps, mean, std, policy_encoding
             )
 
-        st.success(f"Simulation complete: {steps} steps across {len(population):,} citizens")
+        st.success("Simulation Complete")
 
-        col1, col2, col3 = st.columns(3)
+        st.subheader("Policy Context")
+        ctx_col1, ctx_col2 = st.columns(2)
+        with ctx_col1:
+            st.write("Domain:", parsed_policy["domain"].upper())
+        with ctx_col2:
+            st.write("Relevant Attributes:", ", ".join(attributes))
 
-        with col1:
+        st.divider()
+        st.subheader("Key Metrics")
+        kpi1, kpi2, kpi3 = st.columns(3)
+        kpi1.metric("Avg Happiness", round(metrics["happiness"][-1], 2))
+        kpi2.metric("Policy Support", round(metrics["support"][-1], 2))
+        kpi3.metric("Avg Income", int(metrics["income"][-1]))
+
+        st.divider()
+        viz_left, viz_right = st.columns(2)
+
+        with viz_left:
+            st.subheader("Occupation Distribution")
+            occ_dist = occupation_distribution(population)
+            fig = px.bar(
+                x=list(occ_dist.keys()),
+                y=list(occ_dist.values()),
+                labels={"x": "Occupation", "y": "Citizens"}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.subheader("Income Distribution")
+            fig = px.histogram(income_list(population), nbins=30)
+            st.plotly_chart(fig, use_container_width=True)
+
+        with viz_right:
+            st.subheader("Caste Distribution")
+            caste_dist = caste_distribution(population)
+            fig = px.pie(
+                names=list(caste_dist.keys()),
+                values=list(caste_dist.values())
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.subheader("Happiness by Occupation")
+            groups = group_by_attribute(population, "occupation")
+            group_happiness = group_average_happiness(groups)
+            fig = px.bar(
+                x=list(group_happiness.keys()),
+                y=list(group_happiness.values()),
+                labels={"x": "Occupation", "y": "Avg Happiness"}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+        st.subheader(f"Time-Series Trends ({steps} Steps)")
+        trend_col1, trend_col2, trend_col3 = st.columns(3)
+
+        with trend_col1:
             fig = px.line(
                 y=metrics["happiness"],
                 labels={"x": "Step", "y": "Happiness"},
@@ -219,7 +152,7 @@ if st.button("Run Simulation"):
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
+        with trend_col2:
             fig = px.line(
                 y=metrics["support"],
                 labels={"x": "Step", "y": "Policy Support"},
@@ -227,10 +160,34 @@ if st.button("Run Simulation"):
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        with col3:
+        with trend_col3:
             fig = px.line(
                 y=metrics["income"],
                 labels={"x": "Step", "y": "Income"},
                 title="Income Over Time"
             )
             st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+        st.subheader("Citizen Explorer")
+        selected_id = st.slider("Select Citizen ID", 0, len(population) - 1, 0)
+        citizen = population[selected_id]
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write("Age:", citizen.age)
+            st.write("Income:", int(citizen.income))
+            st.write("Occupation:", citizen.occupation)
+            st.write("Caste:", citizen.caste)
+        with c2:
+            st.write("Happiness:", round(citizen.happiness, 3))
+            st.write("Policy Support:", round(citizen.policy_support, 3))
+            st.write("Traits:", citizen.traits)
+            st.write("Extra Attributes:", citizen.extra_attributes)
+
+        st.divider()
+        st.subheader("Citizen Diaries")
+        for i, res in enumerate(reactions[:5]):
+            st.markdown(f"**Citizen {i + 1}:**")
+            st.write(res.get("diary_entry", "No diary entry available"))
+            st.divider()
