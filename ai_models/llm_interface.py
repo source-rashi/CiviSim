@@ -9,7 +9,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 
 if api_key and api_key != "your_api_key_here":
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 else:
     model = None
 
@@ -58,6 +58,13 @@ def simulate_citizen_reaction(citizen, policy):
 def parse_llm_output(response_text):
 
     try:
+        # Remove markdown code blocks if present
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+        
         data = json.loads(response_text)
         return data
     except:
