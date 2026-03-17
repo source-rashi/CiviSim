@@ -31,3 +31,36 @@ def predict_reaction(model, citizen, mean=None, std=None, policy_encoding=None):
 
     return output.detach().numpy()
 
+
+
+def predict_batch(model, population, mean=None, std=None, policy_encoding=None):
+    """Predict reactions for an entire population in a single forward pass."""
+
+    enc = policy_encoding if policy_encoding is not None else 3
+
+    features = np.array([
+        [
+            c.age,
+            c.income,
+            c.traits["risk_tolerance"],
+            c.traits["openness"],
+            c.traits["political_leaning"],
+            enc
+        ]
+        for c in population
+    ], dtype=np.float32)
+
+    if mean is not None and std is not None:
+        features = (features - mean) / (std + 1e-8)
+
+    x = torch.tensor(features, dtype=torch.float32)
+
+    model.eval()
+
+    with torch.no_grad():
+        outputs = model(x)
+
+    outputs = torch.clamp(outputs, -1, 1)
+
+    return outputs.detach().numpy()
+
