@@ -88,8 +88,12 @@ if st.button("Run Simulation"):
         st.divider()
         st.subheader("Citizen Reaction Simulation (Sample)")
 
-        sample_population = population[:50]
+        # Performance control: limit sample size to avoid excessive API calls
+        sample_size = min(50, len(population))
+        sample_population = population[:sample_size]
         reactions = []
+
+        st.warning(f"⚠️ Simulating reactions for {sample_size} citizens. This will use Gemini API calls.")
 
         with st.spinner("Simulating citizen reactions..."):
             for i, citizen in enumerate(sample_population):
@@ -98,7 +102,7 @@ if st.button("Run Simulation"):
                 parsed_reaction["citizen_id"] = i
                 reactions.append(parsed_reaction)
 
-        st.info(f"Simulated reactions for {len(reactions)} citizens using Gemini LLM")
+        st.success(f"✓ Simulated reactions for {len(reactions)} citizens using Gemini LLM")
 
         # Display diary entries
         st.subheader("Citizen Reactions (Sample)")
