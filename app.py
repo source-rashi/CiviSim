@@ -14,7 +14,8 @@ from ai_models.llm_interface import (
 )
 from ai_models.training_model import (
     create_training_data,
-    train_model
+    train_model,
+    encode_policy
 )
 from ai_models.reaction_predictor import predict_reaction
 
@@ -130,13 +131,16 @@ if st.button("Run Simulation"):
         st.subheader("Training Neural Network for Full Population")
 
         with st.spinner("Training neural network on LLM data..."):
-            X, y = create_training_data(sample_population, reactions)
-            model = train_model(X, y, epochs=100)
+            X, y = create_training_data(sample_population, reactions, parsed_policy)
+            model, mean, std = train_model(X, y, epochs=100)
 
         st.success(f"✓ Neural network trained on {len(reactions)} citizen samples")
 
         # Apply neural network to entire population
         st.subheader("Full Population Reaction Simulation (Using Neural Network)")
+
+        # Get policy encoding for predictions
+        policy_encoding = encode_policy(parsed_policy)[0]
 
         with st.spinner("Predicting reactions for all 10,000 citizens..."):
             happiness_changes = []
@@ -144,7 +148,7 @@ if st.button("Run Simulation"):
             income_changes = []
 
             for citizen in population:
-                pred = predict_reaction(model, citizen)
+                pred = predict_reaction(model, citizen, mean, std, policy_encoding)
                 
                 happiness_delta = float(pred[0])
                 support_delta = float(pred[1])
