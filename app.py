@@ -49,6 +49,7 @@ if run_btn:
     if not policy.strip():
         st.error("Please enter a policy description")
     else:
+        st.info("Launching pipeline: parse policy, generate population, train model, and simulate time steps.")
         with st.spinner("Running full simulation..."):
             parsed_policy = parse_policy(policy)
             attributes = map_policy_to_attributes(parsed_policy)
@@ -89,6 +90,7 @@ if run_btn:
             )
 
         st.success("Simulation Complete")
+        st.caption(f"Processed {len(population):,} citizens across {steps} steps.")
 
         st.subheader("Policy Context")
         ctx_col1, ctx_col2 = st.columns(2)
