@@ -99,10 +99,11 @@ if run_btn:
 
         st.divider()
         st.subheader("Key Metrics")
-        kpi1, kpi2, kpi3 = st.columns(3)
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         kpi1.metric("Avg Happiness", round(metrics["happiness"][-1], 2))
         kpi2.metric("Policy Support", round(metrics["support"][-1], 2))
         kpi3.metric("Avg Income", int(metrics["income"][-1]))
+        kpi4.metric("Population", len(population))
 
         st.divider()
         viz_left, viz_right = st.columns(2)
