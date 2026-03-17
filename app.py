@@ -92,6 +92,7 @@ if run_btn:
         st.success("Simulation Complete")
         st.caption(f"Processed {len(population):,} citizens across {steps} steps.")
 
+        st.markdown("### Situation Room")
         st.subheader("Policy Context")
         ctx_col1, ctx_col2 = st.columns(2)
         with ctx_col1:
@@ -100,6 +101,7 @@ if run_btn:
             st.write("Relevant Attributes:", ", ".join(attributes))
 
         st.divider()
+        st.markdown("### Executive Summary")
         st.subheader("Key Metrics")
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         kpi1.metric("Avg Happiness", round(metrics["happiness"][-1], 2))
@@ -108,6 +110,7 @@ if run_btn:
         kpi4.metric("Population", len(population))
 
         st.divider()
+        st.markdown("### Population Analytics")
         viz_left, viz_right = st.columns(2)
 
         with viz_left:
@@ -147,6 +150,7 @@ if run_btn:
             st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
+        st.markdown("### Policy Trajectory")
         st.subheader(f"Time-Series Trends ({steps} Steps)")
         trend_col1, trend_col2, trend_col3 = st.columns(3)
 
@@ -175,6 +179,7 @@ if run_btn:
             st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
+        st.markdown("### Individual Lens")
         st.subheader("Citizen Explorer")
         selected_id = st.slider("Select Citizen ID", 0, len(population) - 1, 0)
         citizen = population[selected_id]
@@ -195,6 +200,7 @@ if run_btn:
             st.write("Extra Attributes:", citizen.extra_attributes)
 
         st.divider()
+        st.markdown("### Human Narratives")
         st.subheader("Citizen Diaries")
         for i, res in enumerate(reactions[:5]):
             with st.container(border=True):
