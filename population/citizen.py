@@ -40,6 +40,11 @@ class Citizen:
         self.policy_support += support_delta
         self.income += income_delta
 
+        # Clamp to realistic bounds
+        self.happiness = max(0, min(1, self.happiness))
+        self.policy_support = max(0, min(1, self.policy_support))
+        self.income = max(0, self.income)
+
     def to_dict(self):
 
         return {
