@@ -8,6 +8,10 @@ from utils.metrics import (
 )
 from policy_engine.policy_parser import parse_policy
 from policy_engine.policy_mapper import map_policy_to_attributes
+from ai_models.llm_interface import (
+    simulate_citizen_reaction,
+    parse_llm_output
+)
 
 st.set_page_config(
     page_title="CIVISIM",
@@ -79,6 +83,22 @@ if st.button("Run Simulation"):
         fig = px.histogram(incomes, nbins=30)
 
         st.plotly_chart(fig, use_container_width=True)
+
+        # Simulate LLM reactions for sample population
+        st.divider()
+        st.subheader("Citizen Reaction Simulation (Sample)")
+
+        sample_population = population[:50]
+        reactions = []
+
+        with st.spinner("Simulating citizen reactions..."):
+            for i, citizen in enumerate(sample_population):
+                raw_response = simulate_citizen_reaction(citizen, policy)
+                parsed_reaction = parse_llm_output(raw_response)
+                parsed_reaction["citizen_id"] = i
+                reactions.append(parsed_reaction)
+
+        st.info(f"Simulated reactions for {len(reactions)} citizens using Gemini LLM")
 
 st.divider()
 
