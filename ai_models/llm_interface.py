@@ -1,6 +1,7 @@
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -52,4 +53,18 @@ def simulate_citizen_reaction(citizen, policy):
     """
 
     return generate_response(prompt)
+
+
+def parse_llm_output(response_text):
+
+    try:
+        data = json.loads(response_text)
+        return data
+    except:
+        return {
+            "happiness_change": 0,
+            "support_change": 0,
+            "income_change": 0,
+            "diary_entry": "No response generated"
+        }
 
