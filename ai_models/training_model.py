@@ -1,3 +1,7 @@
+import torch
+import torch.nn as nn
+
+
 def create_training_data(population, llm_results):
 
     X = []
@@ -24,4 +28,23 @@ def create_training_data(population, llm_results):
         y.append(targets)
 
     return X, y
+
+
+class ReactionModel(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        self.network = nn.Sequential(
+            nn.Linear(6, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 3)
+        )
+
+    def forward(self, x):
+
+        return self.network(x)
 
