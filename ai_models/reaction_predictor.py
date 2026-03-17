@@ -17,12 +17,17 @@ def predict_reaction(model, citizen, mean=None, std=None, policy_encoding=None):
     if mean is not None and std is not None:
         features = (np.array(features) - mean) / (std + 1e-8)
 
-    x = torch.tensor(features, dtype=torch.float32)
+    # Add batch dimension for model forward pass (BatchNorm requires it)
+    x = torch.tensor(np.array([features]), dtype=torch.float32)
 
-    output = model(x)
+    # Set model to eval mode for inference
+    model.eval()
+    
+    with torch.no_grad():
+        output = model(x)
 
-    # Clamp outputs to realistic range [-1, 1]
-    output = torch.clamp(output, -1, 1)
+    # Remove batch dimension and clamp outputs to realistic range [-1, 1]
+    output = torch.clamp(output[0], -1, 1)
 
     return output.detach().numpy()
 
