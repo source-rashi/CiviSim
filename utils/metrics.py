@@ -32,3 +32,28 @@ def average_happiness(population):
 def average_support(population):
 
     return sum(c.policy_support for c in population) / len(population)
+
+
+def group_by_attribute(population, attr):
+
+    groups = {}
+
+    for citizen in population:
+        key = getattr(citizen, attr, None)
+
+        if key not in groups:
+            groups[key] = []
+
+        groups[key].append(citizen)
+
+    return groups
+
+
+def group_average_happiness(groups):
+
+    result = {}
+
+    for key, group in groups.items():
+        result[key] = sum(c.happiness for c in group) / len(group)
+
+    return result
