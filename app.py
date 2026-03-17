@@ -134,9 +134,12 @@ if run_btn:
             st.subheader("Happiness by Occupation")
             groups = group_by_attribute(population, "occupation")
             group_happiness = group_average_happiness(groups)
+            sorted_group_happiness = dict(
+                sorted(group_happiness.items(), key=lambda item: item[1], reverse=True)
+            )
             fig = px.bar(
-                x=list(group_happiness.keys()),
-                y=list(group_happiness.values()),
+                x=list(sorted_group_happiness.keys()),
+                y=list(sorted_group_happiness.values()),
                 labels={"x": "Occupation", "y": "Avg Happiness"}
             )
             st.plotly_chart(fig, use_container_width=True)
