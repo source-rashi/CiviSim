@@ -195,6 +195,6 @@ if run_btn:
         st.divider()
         st.subheader("Citizen Diaries")
         for i, res in enumerate(reactions[:5]):
-            st.markdown(f"**Citizen {i + 1}:**")
-            st.write(res.get("diary_entry", "No diary entry available"))
-            st.divider()
+            with st.container(border=True):
+                st.markdown(f"**Citizen {i + 1}:**")
+                st.write(res.get("diary_entry", "No diary entry available"))
