@@ -1,49 +1,89 @@
-# CIVISIM
+# CiviSim
 
-## Overview
-CIVISIM is an AI-powered synthetic society simulator designed to explore
-how public policies impact a virtual population.
+CiviSim is an AI-assisted synthetic society simulator for policy experimentation.
+It lets you describe a policy in plain language, generates a large virtual population,
+estimates citizen-level reactions, and visualizes system-wide outcomes over time.
 
-The system combines agent-based simulation, LLM reasoning, and neural
-network models to simulate policy effects.
+## What It Does
 
-## Core Idea
-Users can enter a policy description and simulate how thousands of
-synthetic citizens respond over time.
+- Parses free-text policy input into a structured policy representation.
+- Maps policy intent to citizen attributes likely to be affected.
+- Generates a synthetic population (demographics, occupation, income, traits).
+- Uses Gemini to simulate reactions for a sample of citizens.
+- Trains a neural predictor to scale reactions across the full population.
+- Runs multi-step simulation and tracks happiness, support, and income trajectories.
+- Displays interactive dashboard analytics and citizen-level views.
 
 ## Tech Stack
 
 - Python
 - Streamlit
 - PyTorch
-- Gemini API
+- Plotly
+- Pandas / NumPy
 - NetworkX
-- Pandas
+- Google Gemini API (`google-generativeai`)
 
-## Development Phases
+## Repository Structure
 
-- Phase 0 — Project foundation
-- Phase 1 — Synthetic population engine
-- Phase 2 — Policy understanding engine
-- Phase 3 — LLM citizen simulation
-- Phase 4 — Neural reaction model
-- Phase 5 — Simulation engine
-- Phase 6 — Advanced dashboard
+```text
+civisim/
+	app.py
+	ai_models/
+	policy_engine/
+	population/
+	simulation/
+	dashboard/
+	utils/
+	data/
+	docs/
+	test_*.py
+```
 
-## Getting Started
+## Quick Start
 
-### Installation
+### 1) Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Running the Application
+### 2) Configure environment variables
+
+Create a `.env` file in the project root:
+
+```env
+GEMINI_API_KEY=your_actual_api_key
+```
+
+Without a valid key, LLM reaction generation returns a configuration error message.
+
+### 3) Run the app
 
 ```bash
 streamlit run app.py
 ```
 
-## Project Status
+Then open the local Streamlit URL shown in your terminal.
 
-Currently in Phase 0 — Project Foundation
+## Testing
+
+Run the included tests with:
+
+```bash
+pytest -q
+```
+
+Targeted runs:
+
+```bash
+pytest -q test_policy_engine.py
+pytest -q test_phase45.py
+pytest -q test_phase5.py
+pytest -q test_dashboard_integration.py
+```
+
+## Current Status
+
+Core pipeline and dashboard are implemented and integrated.
+Roadmap notes are available in `docs/roadmap.md`.
