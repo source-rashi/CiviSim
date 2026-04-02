@@ -60,8 +60,7 @@ if run_btn:
             reactions = []
 
             for i, citizen in enumerate(sample_population):
-                raw_response = simulate_citizen_reaction(citizen, policy)
-                parsed_reaction = parse_llm_output(raw_response)
+                parsed_reaction = simulate_citizen_reaction(citizen, policy)
                 parsed_reaction["citizen_id"] = i
                 reactions.append(parsed_reaction)
 
