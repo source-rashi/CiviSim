@@ -7,57 +7,54 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Gemini model is loaded lazily — only when first needed.
-# This means the file can be imported safely even if google-generativeai
-# is not installed. Tests and offline runs will use the mock fallback.
-_gemini_model = None
+_gemini_client = None
 
 
-def _get_model():
-    """Return the Gemini model instance, initializing it on first call."""
-    global _gemini_model
+def _get_client():
+    """Return the Gemini client, initializing it on first call."""
+    global _gemini_client
 
-    if _gemini_model is not None:
-        return _gemini_model
+    if _gemini_client is not None:
+        return _gemini_client
 
     try:
-        import google.generativeai as genai
+        from google import genai
 
         api_key = os.getenv("GEMINI_API_KEY")
 
         if not api_key or api_key == "your_api_key_here":
             logger.warning(
                 "GEMINI_API_KEY not set or is placeholder. "
-                "Running in mock mode — reactions will be simulated locally."
+                "Running in mock mode."
             )
             return None
 
-        genai.configure(api_key=api_key)
-        _gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-        logger.info("Gemini model initialized successfully.")
-        return _gemini_model
+        _gemini_client = genai.Client(api_key=api_key)
+        logger.info("Gemini client initialized successfully.")
+        return _gemini_client
 
     except ImportError:
         logger.warning(
-            "google-generativeai package not installed. "
-            "Running in mock mode. Install with: pip install google-generativeai"
+            "google-genai package not installed. "
+            "Running in mock mode. Install with: pip install google-genai"
         )
+        return None
+
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini client: {e}")
         return None
 
 
 def _mock_reaction(citizen, policy):
     """
-    Generate a realistic-looking mock reaction when Gemini is unavailable.
-    Uses citizen attributes to produce varied (not identical) fake reactions
-    so the rest of the pipeline still exercises properly during testing.
+    Generate a realistic mock reaction when Gemini is unavailable.
+    Uses citizen attributes so reactions are varied, not identical.
     """
     import random
 
-    # Seed randomness on citizen id so results are consistent per citizen
     rng = random.Random(citizen.cid)
 
-    # Base reaction varies by income and political leaning
-    income_factor = (citizen.income - 10000) / 190000  # 0 to 1
+    income_factor = (citizen.income - 10000) / 190000
     leaning = citizen.traits.get("political_leaning", 0.5)
     openness = citizen.traits.get("openness", 0.5)
 
@@ -73,22 +70,26 @@ def _mock_reaction(citizen, policy):
 
     return {
         "happiness_change": max(-1.0, min(1.0, happiness)),
-        "support_change": max(-1.0, min(1.0, support)),
-        "income_change": income_change,
-        "diary_entry": diary
+        "support_change":   max(-1.0, min(1.0, support)),
+        "income_change":    income_change,
+        "diary_entry":      diary
     }
 
 
 def generate_response(prompt):
-    """Call Gemini API with the given prompt. Returns raw text response."""
-    model = _get_model()
+    """Call Gemini API with the given prompt. Returns raw text or None."""
+    client = _get_client()
 
-    if model is None:
-        return None  # Caller should handle None by using mock
+    if client is None:
+        return None
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
         return response.text
+
     except Exception as e:
         logger.error(f"Gemini API call failed: {e}")
         return None
@@ -100,9 +101,9 @@ def simulate_citizen_reaction(citizen, policy):
     Uses Gemini if available, falls back to mock otherwise.
     Returns a parsed reaction dict directly.
     """
-    model = _get_model()
+    client = _get_client()
 
-    if model is None:
+    if client is None:
         logger.debug(f"Mock reaction for citizen {citizen.cid}")
         return _mock_reaction(citizen, policy)
 
@@ -141,20 +142,18 @@ Output ONLY valid JSON. No markdown, no explanation, no extra text.
 
 def parse_llm_output(response_text, citizen=None):
     """
-    Parse JSON from LLM response. Falls back to mock reaction on failure.
+    Parse JSON from LLM response. Falls back to mock on failure.
     Logs what went wrong so you can debug bad responses.
     """
     try:
-        # Strip markdown code fences if present
         text = response_text.strip()
+
         if text.startswith("```"):
             lines = text.split("\n")
-            # Remove first line (```json or ```) and last line (```)
             text = "\n".join(lines[1:-1]).strip()
 
         data = json.loads(text)
 
-        # Validate required keys exist
         required = ["happiness_change", "support_change", "income_change", "diary_entry"]
         for key in required:
             if key not in data:
@@ -171,7 +170,7 @@ def parse_llm_output(response_text, citizen=None):
             return _mock_reaction(citizen, None)
         return {
             "happiness_change": 0.0,
-            "support_change": 0.0,
-            "income_change": 0.0,
-            "diary_entry": "No response could be generated."
+            "support_change":   0.0,
+            "income_change":    0.0,
+            "diary_entry":      "No response could be generated."
         }
