@@ -4,5 +4,5 @@ numpy
 torch
 networkx
 python-dotenv
-google-generativeai
+google-genai
 plotly
