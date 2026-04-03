@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 # The model outputs a raw float for income; we scale it to a realistic range.
 #
 # INCOME_SCALE: multiply the raw model output by this to get rupees.
-# Tune this based on your LLM reactions — if Gemini says income_change
-# is typically in the range [-5000, +20000], set this to 10000.
+# The LLM generates income_change directly in rupees (e.g., -5000 to +20000).
+# The neural network learns to predict in that same range.
+# So INCOME_SCALE should be 1.0 (no additional scaling).
 # ---------------------------------------------------------------------------
 
-INCOME_SCALE = 10_000  # rupees per unit of raw model output
+INCOME_SCALE = 1.0  # The model already outputs values in rupees
 
 
 # ---------------------------------------------------------------------------
