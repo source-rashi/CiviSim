@@ -25,54 +25,140 @@ st.set_page_config(
 )
 
 # ================================================================
-# PHASE F-ULTRA 1: PREMIUM DESIGN SYSTEM
+# PHASE F-ULTRA FINAL: COMPLETE STREAMLIT OVERRIDE
 # ================================================================
 
-# Task F1.1: Remove Default Streamlit UI
+# Task F-FINAL.1: Force Full Theme Override (at TOP)
 st.markdown("""
 <style>
 
-/* Hide default Streamlit UI elements */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
+/* REMOVE ALL STREAMLIT UI */
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+header {visibility: hidden !important;}
+[data-testid="stSidebar"] {display: none !important;}
 
-/* Global background with gradient */
-body {
-    background: linear-gradient(135deg, #0A0F1C, #0F172A);
-    color: #E0E7FF;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* Optimize container padding */
+/* REMOVE ALL DEFAULT PADDING */
 .block-container {
-    padding-top: 1rem;
-    padding-left: 3rem;
-    padding-right: 3rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    padding: 0rem 3rem 2rem 3rem !important;
+    max-width: 1400px !important;
 }
 
-/* Typography excellence */
+/* FORCE DARK BACKGROUND */
+html, body {
+    background-color: #0A0F1C !important;
+    color: #E0E7FF !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* REMOVE STREAMLIT DEFAULT SECTION PADDING */
+section.main > div {
+    padding-top: 0rem !important;
+}
+
+/* TYPOGRAPHY SYSTEM */
 h1, h2, h3, h4 {
-    font-weight: 600;
-    letter-spacing: -0.5px;
-    color: #E0E7FF;
+    color: #E0E7FF !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.5px !important;
 }
 
 h1 {
-    font-size: 2.5rem;
-    line-height: 1.2;
+    font-size: 2.5rem !important;
+    line-height: 1.2 !important;
 }
 
 h2 {
-    font-size: 2rem;
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
+    font-size: 2rem !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
 }
 
 p {
-    line-height: 1.6;
+    line-height: 1.6 !important;
+    color: #E0E7FF !important;
+}
+
+/* HIDE UGLY SLIDERS */
+[data-testid="stSlider"] {
+    display: none !important;
+}
+
+/* CUSTOM BUTTON STYLE */
+button {
+    background: linear-gradient(135deg, #4CC9F0, #4361EE) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    font-weight: 600 !important;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #7DDFFF, #5B7EFF) !important;
+}
+
+/* TEXT INPUT FIX */
+input {
+    background-color: rgba(28, 37, 54, 0.7) !important;
+    color: #E0E7FF !important;
+    border: 1px solid rgba(76, 201, 240, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+/* TEXT AREA FIX */
+textarea {
+    background-color: rgba(28, 37, 54, 0.7) !important;
+    color: #E0E7FF !important;
+    border: 1px solid rgba(76, 201, 240, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+/* NO DIVIDERS */
+hr {
+    background-color: rgba(76, 201, 240, 0.2) !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# Task F1.2: Glassmorphism Card System
+st.markdown("""
+<style>
+
+.glass-card {
+    background: rgba(28, 37, 54, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    border-color: rgba(76, 201, 240, 0.4);
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #E0E7FF;
+}
+
+.sub-text {
+    color: #94A3B8;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
 }
 
 </style>
