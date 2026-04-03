@@ -211,13 +211,13 @@ st.markdown("Analyze how policies impact a synthetic society.")
 st.divider()
 
 # ================================================================
-# HERO SECTION — Premium SaaS Style (Task F1.3)
+# HERO SECTION — Premium SaaS Style
 # ================================================================
 st.markdown("""
 <div style="margin-top: 60px; text-align: center; margin-bottom: 80px;">
 
 <h1 style="font-size: 52px; line-height: 1.2; margin-bottom: 20px;">
-CIVISIM — AI-Powered Synthetic Society Simulator
+AI-Powered Synthetic Society Simulator
 </h1>
 
 <p style="color: #94A3B8; font-size: 20px; max-width: 700px; margin: 0 auto; line-height: 1.6;">
@@ -228,14 +228,14 @@ Test public policies on thousands of virtual citizens before they affect the rea
 """, unsafe_allow_html=True)
 
 # ================================================================
-# FEATURE CARDS — Premium Design (Task F1.4)
+# FEATURE CARDS — Premium Design
 # ================================================================
 col1, col2, col3 = st.columns(3)
 
 feature_cards = [
-    ("🧠 Realistic Reactions", "AI simulates authentic human behavior"),
-    ("⏳ Time Evolution", "Track policy impact across multiple time steps"),
-    ("📊 Instant Insights", "Understand societal impact in seconds")
+    ("Realistic Reactions", "AI simulates authentic human behavior"),
+    ("Time Evolution", "Track policy impact across multiple time steps"),
+    ("Instant Insights", "Understand societal impact in seconds")
 ]
 
 for col, (title, desc) in zip([col1, col2, col3], feature_cards):
@@ -294,42 +294,43 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("## 🚀 Live Simulation Dashboard")
+st.markdown("## Live Simulation Dashboard")
 
 left, center, right = st.columns([1.2, 2.5, 1.3])
 
 # ================================================================
-# TASK F2.2: LEFT PANEL — SIMULATION CONTROL
+# LEFT PANEL — SIMULATION CONTROL
 # ================================================================
 with left:
     st.markdown("""
     <div class="glass-card">
-    <h3 style="margin-top: 0;">⚙️ Simulation Setup</h3>
+    <h3 style="margin-top: 0;">Simulation Setup</h3>
     <p class="sub-text">Configure your experiment</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
+    # Number inputs (sliders hidden by CSS)
     citizens = st.slider("Number of Citizens", 1000, 50000, 10000, key="left_citizens")
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
     steps = st.slider("Time Steps", 5, 50, 20, key="left_steps")
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
     col_btn, col_empty = st.columns([1, 0.2])
     with col_btn:
-        run_btn = st.button("Run Simulation 🚀", use_container_width=True)
+        run_btn = st.button("Run Simulation", use_container_width=True)
 
 # ================================================================
-# TASK F2.3: CENTER PANEL — MAIN VISUALIZATION
+# CENTER PANEL — MAIN VISUALIZATION
 # ================================================================
 with center:
     st.markdown("""
     <div class="glass-card">
-    <h3 style="margin-top: 0;">📈 Society Evolution Over Time</h3>
+    <h3 style="margin-top: 0;">Society Evolution Over Time</h3>
     <p class="sub-text">
     This graph shows how happiness, support, and income evolve after policy application.
     </p>
@@ -358,44 +359,39 @@ with center:
     ))
     
     fig.update_layout(
-        template="plotly_dark",
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
+        template=None,
+        plot_bgcolor='rgba(10,15,28,1)',
+        paper_bgcolor='rgba(10,15,28,1)',
         hovermode='x unified',
         margin=dict(l=10, r=10, t=20, b=10),
         height=400,
         font=dict(family="Inter, sans-serif", color="#E0E7FF"),
         xaxis=dict(
-            gridcolor='rgba(76, 201, 240, 0.1)',
+            showgrid=False,
             zeroline=False
         ),
         yaxis=dict(
-            gridcolor='rgba(76, 201, 240, 0.1)',
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.1)',
             zeroline=False
         ),
-        legend=dict(
-            x=0.01,
-            y=0.99,
-            bgcolor='rgba(0, 0, 0, 0.5)',
-            bordercolor='rgba(76, 201, 240, 0.2)',
-            borderwidth=1
-        )
+        showlegend=True
     )
     
     st.plotly_chart(fig, use_container_width=True)
 
 # ================================================================
-# TASK F2.4: RIGHT PANEL — KEY METRICS WITH EMPHASIS
+# RIGHT PANEL — KEY METRICS WITH EMPHASIS
 # ================================================================
 with right:
     st.markdown("""
     <div class="glass-card">
-    <h3 style="margin-top: 0;">📊 Key Results</h3>
+    <h3 style="margin-top: 0;">Key Results</h3>
     <p class="sub-text">Instant insights</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
     # Metric 1: Happiness
     st.markdown("""
@@ -405,7 +401,7 @@ with right:
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
     # Metric 2: Support
     st.markdown("""
@@ -415,7 +411,7 @@ with right:
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("")  # Spacing
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
     # Metric 3: Income
     st.markdown("""
@@ -425,26 +421,28 @@ with right:
     </div>
     """, unsafe_allow_html=True)
 
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 st.divider()
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
 # ================================================================
-# EXPLAINABILITY & STORY SECTION (Phase F4)
+# EXPLAINABILITY & STORY SECTION
 # ================================================================
 
 # ================================================================
-# SECTION: HOW IT WORKS (Phase F4.1)
+# SECTION: HOW IT WORKS
 # ================================================================
 how_it_works_section = st.container()
 
 with how_it_works_section:
-    st.markdown("## How CIVISIM Works")
+    st.markdown("## How It Works")
     
     steps = [
-        "📋 Define Policy",
+        "Define Policy",
         "👥 Generate Population",
         "🤖 AI Reactions",
-        "🧠 Neural Scaling",
-        "⏱️ Time Simulation"
+        "Neural Scaling",
+        "Time Simulation"
     ]
     
     cols = st.columns(5)
@@ -457,10 +455,12 @@ with how_it_works_section:
             </div>
             """, unsafe_allow_html=True)
 
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 st.divider()
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
 # ================================================================
-# SECTION: CITIZEN EXPLORER (Phase F4.2)
+# SECTION: CITIZEN EXPLORER
 # ================================================================
 citizen_explorer_section = st.container()
 
@@ -470,7 +470,7 @@ with citizen_explorer_section:
     
     st.markdown("""
     <div class="card">
-    <h4>👤 Citizen Profile</h4>
+    <h4>Citizen Profile</h4>
     <p><strong>Age:</strong> 25</p>
     <p><strong>Occupation:</strong> Student</p>
     <p><strong>Income:</strong> ₹20,000</p>
@@ -480,10 +480,12 @@ with citizen_explorer_section:
     </div>
     """, unsafe_allow_html=True)
 
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 st.divider()
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
 # ================================================================
-# SECTION: CITIZEN DIARIES (Phase F4.3)
+# SECTION: CITIZEN DIARIES
 # ================================================================
 diary_entries_section = st.container()
 
@@ -493,13 +495,15 @@ with diary_entries_section:
     
     st.markdown("""
     <div class="card">
-    <h4>💭 Diary Entry</h4>
+    <h4>Diary Entry</h4>
     <p><em>"I'm feeling hopeful today. The new scholarship program will help me continue my education without burdening my family. This could change everything for me."</em></p>
     <p style="margin-top: 10px; font-size: 0.9em;"><strong>Emotion Shift:</strong> +0.35 happiness, +0.42 support</p>
     </div>
     """, unsafe_allow_html=True)
 
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 st.divider()
+st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
 # ================================================================
 # INPUT SECTION: Policy Configuration
@@ -515,6 +519,7 @@ with input_col1:
 
 with input_col2:
     steps = st.slider("Simulation Steps", 5, 50, 10)
+    st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
     run_btn = st.button("Run Simulation", use_container_width=True)
 
 if run_btn:
@@ -696,7 +701,7 @@ if run_btn:
 
             st.markdown(f"""
             <div class="glass-card">
-            <h3 style="margin-top: 0;">👤 Citizen Profile</h3>
+            <h3 style="margin-top: 0;">Citizen Profile</h3>
             <p><b>Age:</b> {citizen.age}</p>
             <p><b>Occupation:</b> {citizen.occupation}</p>
             <p><b>Income:</b> ₹{int(citizen.income):,}</p>
@@ -713,16 +718,16 @@ if run_btn:
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
-        # SECTION 6: Human Narratives — Enhanced Diary Timeline (Phase F-ULTRA 3 — Task F3.2)
+        # SECTION 6: Human Narratives — Enhanced Diary Timeline
         narratives_section = st.container()
         with narratives_section:
-            st.markdown("## 📖 Citizen Diaries")
+            st.markdown("## Citizen Diaries")
 
             for i, reaction in enumerate(reactions[:5]):
                 happiness_change = reaction.get("happiness_change", 0)
-                sentiment = "🟢 Positive" if happiness_change > 0 else "🔴 Negative" if happiness_change < 0 else "🟡 Neutral"
+                sentiment = "Positive" if happiness_change > 0 else "Negative" if happiness_change < 0 else "Neutral"
 
                 st.markdown(f"""
                 <div class="glass-card">
@@ -735,12 +740,12 @@ if run_btn:
                 </div>
                 """, unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
-        # SECTION 7: AI Explanation Panel (Phase F-ULTRA 3 — Task F3.3)
+        # SECTION 7: AI Explanation Panel
         ai_insights_section = st.container()
         with ai_insights_section:
-            st.markdown("## 🧠 AI Insights")
+            st.markdown("## AI Insights")
 
             # Generate dynamic insight based on metrics
             final_happiness = metrics["happiness"][-1] if metrics["happiness"] else 0
@@ -756,17 +761,17 @@ if run_btn:
 
             st.markdown(f"""
             <div class="glass-card">
-            <h3 style="margin-top: 0;">📊 What's happening?</h3>
+            <h3 style="margin-top: 0;">What's Happening?</h3>
             <p>{insight}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="height: 40px;"></div>', unsafe_allow_html=True)
 
-        # SECTION 8: Group Insight Cards (Phase F-ULTRA 3 — Task F3.4)
+        # SECTION 8: Group Insight Cards
         group_insights_section = st.container()
         with group_insights_section:
-            st.markdown("## 📊 Group Insights")
+            st.markdown("## Group Insights")
 
             # Calculate group-level insights
             groups = group_by_attribute(population, "occupation")
