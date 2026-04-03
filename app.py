@@ -178,6 +178,80 @@ with dashboard_section:
 st.divider()
 
 # ================================================================
+# EXPLAINABILITY & STORY SECTION (Phase F4)
+# ================================================================
+
+# ================================================================
+# SECTION: HOW IT WORKS (Phase F4.1)
+# ================================================================
+how_it_works_section = st.container()
+
+with how_it_works_section:
+    st.markdown("## How CIVISIM Works")
+    
+    steps = [
+        "📋 Define Policy",
+        "👥 Generate Population",
+        "🤖 AI Reactions",
+        "🧠 Neural Scaling",
+        "⏱️ Time Simulation"
+    ]
+    
+    cols = st.columns(5)
+    
+    for col, step in zip(cols, steps):
+        with col:
+            st.markdown(f"""
+            <div class="card">
+            <p style="text-align: center; margin: 0;"><strong>{step}</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
+
+st.divider()
+
+# ================================================================
+# SECTION: CITIZEN EXPLORER (Phase F4.2)
+# ================================================================
+citizen_explorer_section = st.container()
+
+with citizen_explorer_section:
+    st.markdown("## Citizen Explorer")
+    st.caption("Meet one of the virtual citizens in your simulation")
+    
+    st.markdown("""
+    <div class="card">
+    <h4>👤 Citizen Profile</h4>
+    <p><strong>Age:</strong> 25</p>
+    <p><strong>Occupation:</strong> Student</p>
+    <p><strong>Income:</strong> ₹20,000</p>
+    <p><strong>Location:</strong> Rural</p>
+    <p><strong>Traits:</strong> Open, Moderate Risk Tolerance</p>
+    <p><strong>Policy Support:</strong> 0.68 (Strong Support)</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# ================================================================
+# SECTION: CITIZEN DIARIES (Phase F4.3)
+# ================================================================
+diary_entries_section = st.container()
+
+with diary_entries_section:
+    st.markdown("## Citizen Diaries")
+    st.caption("First-person narratives from the synthetic society")
+    
+    st.markdown("""
+    <div class="card">
+    <h4>💭 Diary Entry</h4>
+    <p><em>"I'm feeling hopeful today. The new scholarship program will help me continue my education without burdening my family. This could change everything for me."</em></p>
+    <p style="margin-top: 10px; font-size: 0.9em;"><strong>Emotion Shift:</strong> +0.35 happiness, +0.42 support</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# ================================================================
 # INPUT SECTION: Policy Configuration
 # ================================================================
 input_col1, input_col2 = st.columns([2, 1])
