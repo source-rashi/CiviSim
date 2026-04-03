@@ -516,6 +516,7 @@ if run_btn:
             kpi4.metric("Population",     f"{len(population):,}")
 
         # SECTION 3: Population Analytics
+        st.markdown("<br><br>", unsafe_allow_html=True)
         analytics_section = st.container()
         with analytics_section:
             st.divider()
@@ -564,6 +565,7 @@ if run_btn:
                 st.plotly_chart(fig, use_container_width=True)
 
         # SECTION 4: Policy Trajectory
+        st.markdown("<br><br>", unsafe_allow_html=True)
         trajectory_section = st.container()
         with trajectory_section:
             st.divider()
@@ -597,6 +599,7 @@ if run_btn:
                 st.plotly_chart(fig, use_container_width=True)
 
         # SECTION 5: Individual Citizen Explorer (Phase F-ULTRA 3 — Task F3.1)
+        st.markdown("<br><br>", unsafe_allow_html=True)
         citizen_lens_section = st.container()
         with citizen_lens_section:
             st.divider()
