@@ -671,3 +671,41 @@ if run_btn:
             <p>{insight}</p>
             </div>
             """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # SECTION 8: Group Insight Cards (Phase F-ULTRA 3 — Task F3.4)
+        group_insights_section = st.container()
+        with group_insights_section:
+            st.markdown("## 📊 Group Insights")
+
+            # Calculate group-level insights
+            groups = group_by_attribute(population, "occupation")
+            group_happiness = group_average_happiness(groups)
+            sorted_happiness = dict(
+                sorted(group_happiness.items(), key=lambda item: item[1], reverse=True)
+            )
+
+            # Get top 3 groups
+            top_groups = list(sorted_happiness.items())[:3]
+
+            cols = st.columns(3)
+            for col, (group_name, happiness) in zip(cols, top_groups):
+                with col:
+                    # Determine impact indicator
+                    if happiness > 0.7:
+                        impact = f"+{int((happiness - 0.5) * 100)}% happiness"
+                        color = "#4CC9F0"
+                    elif happiness > 0.4:
+                        impact = f"{int((happiness - 0.5) * 100)}% support"
+                        color = "#94A3B8"
+                    else:
+                        impact = f"{int((happiness - 0.5) * 100)}% benefit"
+                        color = "#7C3AED"
+
+                    st.markdown(f"""
+                    <div class="glass-card">
+                    <h4 style="margin-top: 0; color: {color};">{group_name}</h4>
+                    <p style="margin: 0; color: #94A3B8;">{impact}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
