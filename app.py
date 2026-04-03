@@ -645,3 +645,29 @@ if run_btn:
                 </p>
                 </div>
                 """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # SECTION 7: AI Explanation Panel (Phase F-ULTRA 3 — Task F3.3)
+        ai_insights_section = st.container()
+        with ai_insights_section:
+            st.markdown("## 🧠 AI Insights")
+
+            # Generate dynamic insight based on metrics
+            final_happiness = metrics["happiness"][-1] if metrics["happiness"] else 0
+            final_support = metrics["support"][-1] if metrics["support"] else 0
+            avg_income = metrics["income"][-1] if metrics["income"] else 0
+
+            if final_happiness > 0.6:
+                insight = f"The policy is increasing overall happiness significantly (→ {final_happiness:.2f}). It effectively benefits the targeted demographic while minimizing disruption across other groups."
+            elif final_support > 0.6:
+                insight = f"Public support is strong ({final_support:.2f}), indicating good policy design. Communities see clear benefits, though happiness gains may take time to materialize."
+            else:
+                insight = f"The policy shows mixed results. While not universally supported ({final_support:.2f}), certain groups benefit significantly. Consider targeted communication to improve acceptance."
+
+            st.markdown(f"""
+            <div class="glass-card">
+            <h3 style="margin-top: 0;">📊 What's happening?</h3>
+            <p>{insight}</p>
+            </div>
+            """, unsafe_allow_html=True)
