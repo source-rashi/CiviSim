@@ -72,16 +72,43 @@ st.title("CIVISIM — Policy Simulation Dashboard")
 st.markdown("Analyze how policies impact a synthetic society.")
 st.divider()
 
-top_col1, top_col2 = st.columns([2, 1])
+# ================================================================
+# NAVIGATION BAR (Phase F1: Base Layout)
+# ================================================================
+navbar_col1, navbar_col2, navbar_col3 = st.columns([1, 4, 2])
 
-with top_col1:
+with navbar_col1:
+    st.markdown("### 🎲 CIVISIM")
+
+with navbar_col2:
+    st.markdown(
+        """
+        **Simulator** | Dashboard | Gallery | How it Works | About
+        """
+    )
+
+with navbar_col3:
+    st.markdown(
+        """
+        [GitHub](https://github.com/source-rashi/CiviSim) | [Docs](/)
+        """
+    )
+
+st.divider()
+
+# ================================================================
+# INPUT SECTION: Policy Configuration
+# ================================================================
+input_col1, input_col2 = st.columns([2, 1])
+
+with input_col1:
     policy = st.text_area(
         "Enter Policy",
         height=120,
         placeholder="Example: Increase scholarships for rural OBC students and reduce tuition fees"
     )
 
-with top_col2:
+with input_col2:
     steps = st.slider("Simulation Steps", 5, 50, 10)
     run_btn = st.button("Run Simulation", use_container_width=True)
 
