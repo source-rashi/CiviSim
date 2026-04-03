@@ -97,6 +97,20 @@ with navbar_col3:
 st.divider()
 
 # ================================================================
+# HERO SECTION (Phase F2: Hero Text & Benefit Cards)
+# ================================================================
+hero_section = st.container()
+
+with hero_section:
+    st.title("CIVISIM — AI-Powered Synthetic Society Simulator")
+    
+    st.markdown(
+        "Test public policies on thousands of virtual citizens before they affect the real world"
+    )
+
+st.divider()
+
+# ================================================================
 # INPUT SECTION: Policy Configuration
 # ================================================================
 input_col1, input_col2 = st.columns([2, 1])
