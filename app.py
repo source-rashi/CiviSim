@@ -596,31 +596,33 @@ if run_btn:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-        # SECTION 5: Individual Citizen Explorer
+        # SECTION 5: Individual Citizen Explorer (Phase F-ULTRA 3 — Task F3.1)
         citizen_lens_section = st.container()
         with citizen_lens_section:
             st.divider()
-            st.markdown("### Individual Lens")
-            st.subheader("Citizen Explorer")
+            st.markdown("## 🧑 Citizen Explorer")
 
-            selected_id = st.slider("Select Citizen ID", 0, len(population) - 1, 0)
+            selected_id = st.slider("Select Citizen", 0, len(population) - 1, 0)
             citizen = population[selected_id]
 
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Citizen ID", citizen.cid)
-                st.write("**Age:**",        citizen.age)
-                st.write("**Income:**",     f"₹{int(citizen.income):,}")
-                st.write("**Occupation:**", citizen.occupation)
-                st.write("**Caste:**",      citizen.caste)
-                st.write("**Location:**",   citizen.location)
-            with c2:
-                st.write("**Happiness:**",      round(citizen.happiness, 3))
-                st.write("**Policy Support:**", round(citizen.policy_support, 3))
-
-            with st.expander("View Traits and Extra Attributes"):
-                st.write("**Traits:**",            citizen.traits)
-                st.write("**Extra Attributes:**",  citizen.extra_attributes)
+            st.markdown(f"""
+            <div class="glass-card">
+            <h3 style="margin-top: 0;">👤 Citizen Profile</h3>
+            <p><b>Age:</b> {citizen.age}</p>
+            <p><b>Occupation:</b> {citizen.occupation}</p>
+            <p><b>Income:</b> ₹{int(citizen.income):,}</p>
+            <p><b>Location:</b> {citizen.location}</p>
+            <hr style="border-color: rgba(76, 201, 240, 0.2);">
+            <p><b>Traits:</b></p>
+            <ul style="margin: 5px 0;">
+            <li>Risk Tolerance: {round(citizen.traits.get('risk_tolerance', 0.5), 2)}</li>
+            <li>Openness: {round(citizen.traits.get('openness', 0.5), 2)}</li>
+            <li>Political Leaning: {round(citizen.traits.get('political_leaning', 0.5), 2)}</li>
+            </ul>
+            <hr style="border-color: rgba(76, 201, 240, 0.2);">
+            <p><b>Policy Support:</b> {round(citizen.policy_support, 2)}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         # SECTION 6: Human Narratives
         narratives_section = st.container()
