@@ -23,6 +23,51 @@ st.set_page_config(
     layout="wide"
 )
 
+# ================================================================
+# GLOBAL THEME & STYLING (Phase F1: Design System)
+# ================================================================
+st.markdown("""
+<style>
+
+/* Global dark theme */
+body {
+    background-color: #0A0F1C;
+    color: #E0E7FF;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Card styling for consistent layout */
+.card {
+    background-color: #1C2536;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border-left: 4px solid #6366F1;
+}
+
+.metric-card {
+    background-color: #1C2536;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+/* Typography */
+h1, h2, h3 {
+    color: #E0E7FF;
+}
+
+/* Dividers */
+hr {
+    border-color: #2D3748;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 st.title("CIVISIM — Policy Simulation Dashboard")
 st.markdown("Analyze how policies impact a synthetic society.")
 st.divider()
