@@ -624,19 +624,24 @@ if run_btn:
             </div>
             """, unsafe_allow_html=True)
 
-        # SECTION 6: Human Narratives
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # SECTION 6: Human Narratives — Enhanced Diary Timeline (Phase F-ULTRA 3 — Task F3.2)
         narratives_section = st.container()
         with narratives_section:
-            st.divider()
-            st.markdown("### Human Narratives")
-            st.subheader("Citizen Diaries")
-            st.caption("First-person accounts from the sampled citizens.")
+            st.markdown("## 📖 Citizen Diaries")
 
             for i, reaction in enumerate(reactions[:5]):
-                with st.container(border=True):
-                    st.markdown(f"**Citizen {i + 1}**")
-                    st.write(reaction.get("diary_entry", "No diary entry available."))
-                    col_a, col_b, col_c = st.columns(3)
-                    col_a.metric("Happiness Δ", round(reaction.get("happiness_change", 0), 3))
-                    col_b.metric("Support Δ",   round(reaction.get("support_change", 0), 3))
-                    col_c.metric("Income Δ",    f"₹{int(reaction.get('income_change', 0)):,}")
+                happiness_change = reaction.get("happiness_change", 0)
+                sentiment = "🟢 Positive" if happiness_change > 0 else "🔴 Negative" if happiness_change < 0 else "🟡 Neutral"
+
+                st.markdown(f"""
+                <div class="glass-card">
+                <p style="font-size:14px; color:#94A3B8; margin: 0 0 12px 0;">
+                Citizen {i+1} • {sentiment}
+                </p>
+                <p style="font-size:16px; line-height: 1.6; margin: 0;">
+                {reaction.get("diary_entry", "No diary entry available.")}
+                </p>
+                </div>
+                """, unsafe_allow_html=True)
