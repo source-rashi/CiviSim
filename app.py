@@ -133,6 +133,51 @@ with hero_section:
 st.divider()
 
 # ================================================================
+# DASHBOARD PREVIEW SECTION (Phase F3: Dashboard UI)
+# ================================================================
+dashboard_section = st.container()
+
+with dashboard_section:
+    st.markdown("### Live Dashboard Preview")
+    st.caption("Example of how results appear after running a simulation")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    # ================================================================
+    # COLUMN 1: SIMULATION SETUP PANEL (Phase F3.1)
+    # ================================================================
+    with col1:
+        st.markdown("### Simulation Setup")
+        
+        num_citizens = st.slider("Number of Citizens", 1000, 50000, 10000)
+        
+        time_steps = st.slider("Time Steps", 5, 50, 20)
+    
+    # ================================================================
+    # COLUMN 2: MAIN GRAPH AREA (Phase F3.2)
+    # ================================================================
+    with col2:
+        st.markdown("### Society Evolution Over Time")
+        
+        st.line_chart([1, 2, 3, 4, 5])
+        
+        st.caption(
+            "This graph shows how happiness, support, and income evolve over time"
+        )
+    
+    # ================================================================
+    # COLUMN 3: METRICS PANEL (Phase F3.3)
+    # ================================================================
+    with col3:
+        st.markdown("### Key Results")
+        
+        st.metric("Average Happiness", "0.72")
+        st.metric("Policy Support", "68%")
+        st.metric("Avg Income", "₹45,000")
+
+st.divider()
+
+# ================================================================
 # INPUT SECTION: Policy Configuration
 # ================================================================
 input_col1, input_col2 = st.columns([2, 1])
