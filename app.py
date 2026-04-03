@@ -164,47 +164,180 @@ for col, (title, desc) in zip([col1, col2, col3], feature_cards):
 st.divider()
 
 # ================================================================
-# DASHBOARD PREVIEW SECTION (Phase F3: Dashboard UI)
+# PHASE F-ULTRA 2: PROFESSIONAL DASHBOARD LAYOUT
 # ================================================================
-dashboard_section = st.container()
 
-with dashboard_section:
-    st.markdown("### Live Dashboard Preview")
-    st.caption("Example of how results appear after running a simulation")
+# Task F2.1: Create Professional 3-Column Grid Structure
+st.markdown("""
+<style>
+
+/* Enhanced micro-interactions for all cards */
+.glass-card {
+    background: rgba(28, 37, 54, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    border-color: rgba(76, 201, 240, 0.4);
+}
+
+/* Metric card emphasis */
+.metric-card-large h2 {
+    font-size: 3rem;
+    color: #4CC9F0;
+    margin: 10px 0;
+    font-weight: 700;
+}
+
+.metric-card-large p {
+    color: #94A3B8;
+    margin: 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("## 🚀 Live Simulation Dashboard")
+
+left, center, right = st.columns([1.2, 2.5, 1.3])
+
+# ================================================================
+# TASK F2.2: LEFT PANEL — SIMULATION CONTROL
+# ================================================================
+with left:
+    st.markdown("""
+    <div class="glass-card">
+    <h3 style="margin-top: 0;">⚙️ Simulation Setup</h3>
+    <p class="sub-text">Configure your experiment</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("")  # Spacing
     
-    # ================================================================
-    # COLUMN 1: SIMULATION SETUP PANEL (Phase F3.1)
-    # ================================================================
-    with col1:
-        st.markdown("### Simulation Setup")
-        
-        num_citizens = st.slider("Number of Citizens", 1000, 50000, 10000)
-        
-        time_steps = st.slider("Time Steps", 5, 50, 20)
+    citizens = st.slider("Number of Citizens", 1000, 50000, 10000, key="left_citizens")
     
-    # ================================================================
-    # COLUMN 2: MAIN GRAPH AREA (Phase F3.2)
-    # ================================================================
-    with col2:
-        st.markdown("### Society Evolution Over Time")
-        
-        st.line_chart([1, 2, 3, 4, 5])
-        
-        st.caption(
-            "This graph shows how happiness, support, and income evolve over time"
+    st.markdown("")  # Spacing
+    
+    steps = st.slider("Time Steps", 5, 50, 20, key="left_steps")
+    
+    st.markdown("")  # Spacing
+    
+    col_btn, col_empty = st.columns([1, 0.2])
+    with col_btn:
+        run_btn = st.button("Run Simulation 🚀", use_container_width=True)
+
+# ================================================================
+# TASK F2.3: CENTER PANEL — MAIN VISUALIZATION
+# ================================================================
+with center:
+    st.markdown("""
+    <div class="glass-card">
+    <h3 style="margin-top: 0;">📈 Society Evolution Over Time</h3>
+    <p class="sub-text">
+    This graph shows how happiness, support, and income evolve after policy application.
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Create professional Plotly visualization
+    import plotly.graph_objects as go
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        y=[1, 2, 3, 4, 5],
+        mode='lines',
+        name='Happiness',
+        line=dict(color='#4CC9F0', width=3),
+        hovertemplate='<b>Happiness</b><br>Step: %{x}<br>Value: %{y:.2f}<extra></extra>'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        y=[1.2, 2.1, 3.3, 4.2, 5.1],
+        mode='lines',
+        name='Policy Support',
+        line=dict(color='#7C3AED', width=3),
+        hovertemplate='<b>Policy Support</b><br>Step: %{x}<br>Value: %{y:.2f}<extra></extra>'
+    ))
+    
+    fig.update_layout(
+        template="plotly_dark",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode='x unified',
+        margin=dict(l=10, r=10, t=20, b=10),
+        height=400,
+        font=dict(family="Inter, sans-serif", color="#E0E7FF"),
+        xaxis=dict(
+            gridcolor='rgba(76, 201, 240, 0.1)',
+            zeroline=False
+        ),
+        yaxis=dict(
+            gridcolor='rgba(76, 201, 240, 0.1)',
+            zeroline=False
+        ),
+        legend=dict(
+            x=0.01,
+            y=0.99,
+            bgcolor='rgba(0, 0, 0, 0.5)',
+            bordercolor='rgba(76, 201, 240, 0.2)',
+            borderwidth=1
         )
+    )
     
-    # ================================================================
-    # COLUMN 3: METRICS PANEL (Phase F3.3)
-    # ================================================================
-    with col3:
-        st.markdown("### Key Results")
-        
-        st.metric("Average Happiness", "0.72")
-        st.metric("Policy Support", "68%")
-        st.metric("Avg Income", "₹45,000")
+    st.plotly_chart(fig, use_container_width=True)
+
+# ================================================================
+# TASK F2.4: RIGHT PANEL — KEY METRICS WITH EMPHASIS
+# ================================================================
+with right:
+    st.markdown("""
+    <div class="glass-card">
+    <h3 style="margin-top: 0;">📊 Key Results</h3>
+    <p class="sub-text">Instant insights</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")  # Spacing
+    
+    # Metric 1: Happiness
+    st.markdown("""
+    <div class="glass-card metric-card-large">
+    <h2>0.72</h2>
+    <p>Average Happiness</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")  # Spacing
+    
+    # Metric 2: Support
+    st.markdown("""
+    <div class="glass-card metric-card-large">
+    <h2>68%</h2>
+    <p>Policy Support</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")  # Spacing
+    
+    # Metric 3: Income
+    st.markdown("""
+    <div class="glass-card metric-card-large">
+    <h2>₹45K</h2>
+    <p>Avg Income</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
@@ -233,8 +366,8 @@ with how_it_works_section:
     for col, step in zip(cols, steps):
         with col:
             st.markdown(f"""
-            <div class="card">
-            <p style="text-align: center; margin: 0;"><strong>{step}</strong></p>
+            <div class="glass-card">
+            <p style="text-align: center; margin: 0; font-weight: 600;">{step}</p>
             </div>
             """, unsafe_allow_html=True)
 
