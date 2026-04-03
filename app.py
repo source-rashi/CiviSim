@@ -107,6 +107,28 @@ with hero_section:
     st.markdown(
         "Test public policies on thousands of virtual citizens before they affect the real world"
     )
+    
+    # ================================================================
+    # BENEFIT CARDS (Phase F2.2)
+    # ================================================================
+    st.markdown("")  # Spacing
+    
+    cols = st.columns(3)
+    
+    benefit_cards = [
+        ("🤖 Realistic Human Reactions", "Powered by AI"),
+        ("⏱️ Dynamic Time Evolution", "See changes over time"),
+        ("📊 Instant Insights", "Clear analytics instantly")
+    ]
+    
+    for col, (title, desc) in zip(cols, benefit_cards):
+        with col:
+            st.markdown(f"""
+            <div class="card">
+            <h4>{title}</h4>
+            <p>{desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 st.divider()
 
