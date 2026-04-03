@@ -20,49 +20,101 @@ from simulation.simulation_engine import run_simulation
 
 st.set_page_config(
     page_title="CIVISIM",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # ================================================================
-# GLOBAL THEME & STYLING (Phase F1: Design System)
+# PHASE F-ULTRA 1: PREMIUM DESIGN SYSTEM
 # ================================================================
+
+# Task F1.1: Remove Default Streamlit UI
 st.markdown("""
 <style>
 
-/* Global dark theme */
+/* Hide default Streamlit UI elements */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Global background with gradient */
 body {
-    background-color: #0A0F1C;
+    background: linear-gradient(135deg, #0A0F1C, #0F172A);
     color: #E0E7FF;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Optimize container padding */
 .block-container {
-    padding-top: 2rem;
+    padding-top: 1rem;
+    padding-left: 3rem;
+    padding-right: 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-/* Card styling for consistent layout */
-.card {
-    background-color: #1C2536;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    border-left: 4px solid #6366F1;
-}
-
-.metric-card {
-    background-color: #1C2536;
-    padding: 15px;
-    border-radius: 10px;
-    text-align: center;
-}
-
-/* Typography */
-h1, h2, h3 {
+/* Typography excellence */
+h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.5px;
     color: #E0E7FF;
 }
 
-/* Dividers */
-hr {
-    border-color: #2D3748;
+h1 {
+    font-size: 2.5rem;
+    line-height: 1.2;
+}
+
+h2 {
+    font-size: 2rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+p {
+    line-height: 1.6;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# Task F1.2: Glassmorphism Card System
+st.markdown("""
+<style>
+
+.glass-card {
+    background: rgba(28, 37, 54, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    border-color: rgba(76, 201, 240, 0.4);
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #E0E7FF;
+}
+
+.sub-text {
+    color: #94A3B8;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
 }
 
 </style>
@@ -73,62 +125,41 @@ st.markdown("Analyze how policies impact a synthetic society.")
 st.divider()
 
 # ================================================================
-# NAVIGATION BAR (Phase F1: Base Layout)
+# HERO SECTION — Premium SaaS Style (Task F1.3)
 # ================================================================
-navbar_col1, navbar_col2, navbar_col3 = st.columns([1, 4, 2])
+st.markdown("""
+<div style="margin-top: 60px; text-align: center; margin-bottom: 80px;">
 
-with navbar_col1:
-    st.markdown("### 🎲 CIVISIM")
+<h1 style="font-size: 52px; line-height: 1.2; margin-bottom: 20px;">
+CIVISIM — AI-Powered Synthetic Society Simulator
+</h1>
 
-with navbar_col2:
-    st.markdown(
-        """
-        **Simulator** | Dashboard | Gallery | How it Works | About
-        """
-    )
+<p style="color: #94A3B8; font-size: 20px; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+Test public policies on thousands of virtual citizens before they affect the real world.
+</p>
 
-with navbar_col3:
-    st.markdown(
-        """
-        [GitHub](https://github.com/source-rashi/CiviSim) | [Docs](/)
-        """
-    )
-
-st.divider()
+</div>
+""", unsafe_allow_html=True)
 
 # ================================================================
-# HERO SECTION (Phase F2: Hero Text & Benefit Cards)
+# FEATURE CARDS — Premium Design (Task F1.4)
 # ================================================================
-hero_section = st.container()
+col1, col2, col3 = st.columns(3)
 
-with hero_section:
-    st.title("CIVISIM — AI-Powered Synthetic Society Simulator")
-    
-    st.markdown(
-        "Test public policies on thousands of virtual citizens before they affect the real world"
-    )
-    
-    # ================================================================
-    # BENEFIT CARDS (Phase F2.2)
-    # ================================================================
-    st.markdown("")  # Spacing
-    
-    cols = st.columns(3)
-    
-    benefit_cards = [
-        ("🤖 Realistic Human Reactions", "Powered by AI"),
-        ("⏱️ Dynamic Time Evolution", "See changes over time"),
-        ("📊 Instant Insights", "Clear analytics instantly")
-    ]
-    
-    for col, (title, desc) in zip(cols, benefit_cards):
-        with col:
-            st.markdown(f"""
-            <div class="card">
-            <h4>{title}</h4>
-            <p>{desc}</p>
-            </div>
-            """, unsafe_allow_html=True)
+feature_cards = [
+    ("🧠 Realistic Reactions", "AI simulates authentic human behavior"),
+    ("⏳ Time Evolution", "Track policy impact across multiple time steps"),
+    ("📊 Instant Insights", "Understand societal impact in seconds")
+]
+
+for col, (title, desc) in zip([col1, col2, col3], feature_cards):
+    with col:
+        st.markdown(f"""
+        <div class="glass-card">
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 18px;">{title}</h3>
+            <p class="sub-text">{desc}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.divider()
 
