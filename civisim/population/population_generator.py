@@ -4,32 +4,99 @@ from population.citizen import Citizen
 
 logger = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
-# Realistic attribute distributions (India-context defaults)
+# Distributions
 # ---------------------------------------------------------------------------
 
-OCCUPATIONS = ["student", "worker", "business", "government", "unemployed", "farmer"]
-CASTES      = ["general", "obc", "sc", "st"]
-EDUCATIONS  = ["none", "primary", "secondary", "college", "graduate", "postgrad"]
-LOCATIONS   = ["urban", "semi-urban", "rural"]
-GENDERS     = ["male", "female", "other"]
-CROPS       = ["wheat", "rice", "cotton", "sugarcane", "vegetables", "pulses"]
-HEALTH      = ["excellent", "good", "fair", "poor"]
+CASTES     = ["general", "obc", "sc", "st"]
+EDUCATIONS = ["none", "primary", "secondary", "college", "graduate", "postgrad"]
+LOCATIONS  = ["urban", "semi-urban", "rural"]
+GENDERS    = ["male", "female", "other"]
+CROPS      = ["wheat", "rice", "cotton", "sugarcane", "vegetables", "pulses"]
+HEALTH     = ["excellent", "good", "fair", "poor"]
 
 
-def _income_for(occupation, location):
+def _occupation_for_age(age):
     """
-    Generate a realistic income range based on occupation and location.
-    Rural incomes skew lower; government and business skew higher.
+    Assign occupation based on age — realistically.
+    Students are 17-25. Retired/unemployed skew older.
+    Farmers and workers span all working ages.
     """
+    if age <= 22:
+        return random.choices(
+            ["student", "worker", "unemployed"],
+            weights=[70, 20, 10], k=1
+        )[0]
+    elif age <= 30:
+        return random.choices(
+            ["student", "worker", "business", "government", "unemployed", "farmer"],
+            weights=[15, 35, 15, 15, 10, 10], k=1
+        )[0]
+    elif age <= 55:
+        return random.choices(
+            ["worker", "business", "government", "unemployed", "farmer"],
+            weights=[30, 20, 15, 10, 25], k=1
+        )[0]
+    else:
+        # Older citizens — mostly farmer, worker, or unemployed/retired
+        return random.choices(
+            ["farmer", "worker", "unemployed", "business", "government"],
+            weights=[35, 25, 25, 10, 5], k=1
+        )[0]
+
+
+def _education_for(occupation, age):
+    """Education correlates with occupation and age."""
+    if occupation == "student":
+        if age <= 18:
+            return random.choices(
+                EDUCATIONS, weights=[0, 5, 60, 30, 5, 0], k=1
+            )[0]
+        else:
+            return random.choices(
+                EDUCATIONS, weights=[0, 0, 10, 55, 30, 5], k=1
+            )[0]
+    elif occupation == "government":
+        return random.choices(
+            EDUCATIONS, weights=[0, 2, 10, 25, 45, 18], k=1
+        )[0]
+    elif occupation == "business":
+        return random.choices(
+            EDUCATIONS, weights=[1, 5, 20, 35, 30, 9], k=1
+        )[0]
+    elif occupation == "farmer":
+        return random.choices(
+            EDUCATIONS, weights=[15, 35, 35, 12, 2, 1], k=1
+        )[0]
+    elif occupation == "worker":
+        return random.choices(
+            EDUCATIONS, weights=[5, 20, 40, 25, 8, 2], k=1
+        )[0]
+    else:  # unemployed
+        return random.choices(
+            EDUCATIONS, weights=[10, 25, 40, 18, 5, 2], k=1
+        )[0]
+
+
+def _location_for(occupation):
+    """Farmers skew rural. Government and business skew urban."""
+    if occupation == "farmer":
+        return random.choices(LOCATIONS, weights=[5, 20, 75], k=1)[0]
+    elif occupation in ["government", "business"]:
+        return random.choices(LOCATIONS, weights=[50, 30, 20], k=1)[0]
+    else:
+        return random.choices(LOCATIONS, weights=[35, 25, 40], k=1)[0]
+
+
+def _income_for(occupation, location, age):
+    """Realistic income ranges by occupation, location, and age."""
     base_ranges = {
-        "student":      (5_000,  30_000),
-        "worker":       (12_000, 80_000),
-        "business":     (20_000, 300_000),
-        "government":   (25_000, 150_000),
-        "unemployed":   (0,      15_000),
-        "farmer":       (8_000,  60_000),
+        "student":    (2_000,   15_000),
+        "worker":     (10_000,  80_000),
+        "business":   (20_000, 300_000),
+        "government": (25_000, 150_000),
+        "unemployed": (0,       12_000),
+        "farmer":     (8_000,   70_000),
     }
     low, high = base_ranges.get(occupation, (10_000, 100_000))
 
@@ -37,23 +104,22 @@ def _income_for(occupation, location):
     if location == "rural":
         high = int(high * 0.65)
     elif location == "semi-urban":
-        high = int(high * 0.85)
+        high = int(high * 0.82)
 
-    return random.randint(max(0, low), max(low + 1000, high))
+    # Age modifier — older workers earn more (experience)
+    if age > 40 and occupation in ["worker", "government", "business"]:
+        low = int(low * 1.2)
+
+    return random.randint(max(0, low), max(low + 500, high))
 
 
-def _generate_extra_attributes(required_attributes, occupation, income, location, education):
-    """
-    Generate extra citizen attributes based on what the policy mapper requested.
-    All attributes are generated with realistic distributions — not pure random.
-    """
+def _generate_extra_attributes(required_attributes, occupation, income, location, education, age):
+    """Generate policy-specific extra attributes with realistic distributions."""
     extra = {}
 
     for attr in required_attributes:
 
-        # --- identity / demographic ---
         if attr == "caste":
-            # Approximate Indian population distribution
             extra["caste"] = random.choices(
                 CASTES, weights=[50, 27, 16, 7], k=1
             )[0]
@@ -63,30 +129,17 @@ def _generate_extra_attributes(required_attributes, occupation, income, location
                 GENDERS, weights=[49, 49, 2], k=1
             )[0]
 
-        # --- education ---
         elif attr == "student_status":
-            extra["student_status"] = occupation == "student" or (
-                random.random() < 0.15 and occupation == "worker"
+            # Only realistic for younger citizens or part-time students
+            extra["student_status"] = (
+                occupation == "student" or
+                (age <= 28 and occupation == "worker" and random.random() < 0.15)
             )
 
         elif attr == "education_level":
-            # Education correlates with income
-            if income > 100_000:
-                extra["education_level"] = random.choices(
-                    EDUCATIONS, weights=[1, 2, 10, 20, 40, 27], k=1
-                )[0]
-            elif income > 40_000:
-                extra["education_level"] = random.choices(
-                    EDUCATIONS, weights=[2, 10, 25, 30, 25, 8], k=1
-                )[0]
-            else:
-                extra["education_level"] = random.choices(
-                    EDUCATIONS, weights=[10, 25, 35, 20, 8, 2], k=1
-                )[0]
+            extra["education_level"] = education
 
-        # --- economic ---
         elif attr == "tax_bracket":
-            # Derived from income — not random
             if income < 25_000:
                 extra["tax_bracket"] = "none"
             elif income < 50_000:
@@ -97,34 +150,30 @@ def _generate_extra_attributes(required_attributes, occupation, income, location
                 extra["tax_bracket"] = "high"
 
         elif attr == "loan":
-            # Farmers and workers more likely to have loans
-            has_loan = random.random() < (0.6 if occupation in ["farmer", "worker"] else 0.3)
+            has_loan = random.random() < (
+                0.65 if occupation in ["farmer", "worker"] else 0.3
+            )
             extra["loan"] = random.randint(10_000, 500_000) if has_loan else 0
 
         elif attr == "savings":
-            # Savings correlate with income
             extra["savings"] = random.randint(0, int(income * 12 * 0.2))
 
-        # --- agriculture ---
         elif attr == "land_size":
-            # Farmers have more land; others may have small plots
-            if occupation == "farmer":
-                extra["land_size"] = round(random.uniform(0.5, 10.0), 2)
-            else:
-                extra["land_size"] = round(random.uniform(0.0, 1.0), 2)
+            extra["land_size"] = (
+                round(random.uniform(0.5, 10.0), 2)
+                if occupation == "farmer"
+                else round(random.uniform(0.0, 1.0), 2)
+            )
 
         elif attr == "crop_type":
             extra["crop_type"] = random.choice(CROPS)
 
         elif attr == "irrigation":
-            # Rural farmers more likely to have irrigation
             extra["irrigation"] = random.random() < (
                 0.55 if location == "rural" else 0.3
             )
 
-        # --- location ---
         elif attr == "rural":
-            # Derived from location — not random
             extra["rural"] = location == "rural"
 
         elif attr == "state":
@@ -134,22 +183,18 @@ def _generate_extra_attributes(required_attributes, occupation, income, location
                 "Gujarat", "Andhra Pradesh"
             ])
 
-        # --- health ---
         elif attr == "health_status":
-            # Health correlates inversely with income
-            if income > 100_000:
-                extra["health_status"] = random.choices(
-                    HEALTH, weights=[35, 45, 15, 5], k=1
-                )[0]
-            else:
-                extra["health_status"] = random.choices(
-                    HEALTH, weights=[15, 35, 35, 15], k=1
-                )[0]
+            extra["health_status"] = random.choices(
+                HEALTH,
+                weights=[35, 45, 15, 5] if income > 100_000 else [15, 35, 35, 15],
+                k=1
+            )[0]
 
         elif attr == "insurance":
-            extra["insurance"] = random.random() < (0.6 if income > 60_000 else 0.2)
+            extra["insurance"] = random.random() < (
+                0.6 if income > 60_000 else 0.2
+            )
 
-        # --- unknown attribute ---
         else:
             logger.debug(f"Unknown attribute requested: '{attr}' — skipping.")
 
@@ -159,9 +204,8 @@ def _generate_extra_attributes(required_attributes, occupation, income, location
 def generate_population(size, required_attributes=None):
     """
     Generate a synthetic population of `size` citizens.
-
-    required_attributes: list of attribute names from the policy mapper.
-    All requested attributes are generated with realistic distributions.
+    All demographics are correlated — age drives occupation,
+    occupation drives location, income, and education.
     """
     if required_attributes is None:
         required_attributes = []
@@ -169,27 +213,22 @@ def generate_population(size, required_attributes=None):
     population = []
 
     for i in range(size):
-
-        # Core demographics — generated first so extras can depend on them
-        location   = random.choices(LOCATIONS, weights=[35, 25, 40], k=1)[0]
-        occupation = random.choices(
-            OCCUPATIONS, weights=[15, 30, 15, 10, 10, 20], k=1
-        )[0]
-        income     = _income_for(occupation, location)
-        education  = random.choices(
-            EDUCATIONS, weights=[8, 20, 30, 20, 15, 7], k=1
-        )[0]
+        # Age first — everything else flows from it
+        age        = random.randint(18, 70)
+        occupation = _occupation_for_age(age)
+        location   = _location_for(occupation)
+        education  = _education_for(occupation, age)
+        income     = _income_for(occupation, location, age)
         caste      = random.choices(CASTES, weights=[50, 27, 16, 7], k=1)[0]
         gender     = random.choices(GENDERS, weights=[49, 49, 2], k=1)[0]
 
-        # Extra attributes driven by policy domain
         extra = _generate_extra_attributes(
-            required_attributes, occupation, income, location, education
+            required_attributes, occupation, income, location, education, age
         )
 
         citizen = Citizen(
             cid=i,
-            age=random.randint(18, 70),
+            age=age,
             gender=gender,
             income=income,
             occupation=occupation,
