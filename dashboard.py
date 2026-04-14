@@ -35,38 +35,272 @@ app.index_string = '''
         <title>{%title%}</title>
         {%favicon%}
         {%css%}
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
-            .card-custom {
-                border-radius: 15px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                transition: transform 0.2s;
+            :root {
+                --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                --dark-bg: #1a1a1a;
+                --darker-bg: #121212;
+                --card-bg: rgba(255, 255, 255, 0.02);
+                --border-color: rgba(255, 255, 255, 0.1);
+                --text-primary: #ffffff;
+                --text-secondary: #b0b0b0;
+                --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
             }
-            .card-custom:hover {
-                transform: translateY(-2px);
+
+            * {
+                font-family: 'Inter', sans-serif;
             }
-            .metric-card {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border-radius: 10px;
-                padding: 20px;
+
+            body {
+                background: var(--dark-bg);
+                color: var(--text-primary);
+                background-image:
+                    radial-gradient(circle at 25% 25%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 75% 75%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+                min-height: 100vh;
+            }
+
+            .hero-section {
+                background: var(--primary-gradient);
+                border-radius: 20px;
+                padding: 40px;
+                margin-bottom: 30px;
                 text-align: center;
+                position: relative;
+                overflow: hidden;
             }
+
+            .hero-section::before {
+                content: '';
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: repeating-conic-gradient(
+                    from 0deg,
+                    transparent 0deg 90deg,
+                    rgba(255, 255, 255, 0.05) 90deg 180deg
+                );
+                animation: rotate 20s linear infinite;
+            }
+
+            @keyframes rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            .hero-title {
+                font-size: 3.5rem;
+                font-weight: 700;
+                margin-bottom: 10px;
+                position: relative;
+                z-index: 1;
+            }
+
+            .hero-subtitle {
+                font-size: 1.2rem;
+                opacity: 0.9;
+                position: relative;
+                z-index: 1;
+            }
+
+            .card-custom {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 20px;
+                box-shadow: var(--shadow);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                backdrop-filter: blur(10px);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .card-custom::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: var(--primary-gradient);
+            }
+
+            .card-custom:hover {
+                transform: translateY(-5px);
+                box-shadow: var(--shadow-hover);
+                border-color: rgba(102, 126, 234, 0.3);
+            }
+
+            .metric-card {
+                background: var(--primary-gradient);
+                color: white;
+                border-radius: 15px;
+                padding: 25px;
+                text-align: center;
+                position: relative;
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .metric-card::before {
+                content: '';
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+                transition: all 0.3s ease;
+            }
+
+            .metric-card:hover::before {
+                transform: scale(1.5);
+            }
+
+            .metric-value {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 5px;
+            }
+
+            .metric-label {
+                font-size: 0.9rem;
+                opacity: 0.9;
+                font-weight: 500;
+            }
+
             .policy-input {
                 background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 10px;
+                border: 2px solid var(--border-color);
+                border-radius: 15px;
+                color: var(--text-primary);
+                transition: all 0.3s ease;
             }
+
+            .policy-input:focus {
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+                background: rgba(255, 255, 255, 0.08);
+            }
+
             .btn-custom {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: var(--primary-gradient);
                 border: none;
-                border-radius: 25px;
-                padding: 12px 30px;
+                border-radius: 30px;
+                padding: 15px 40px;
                 font-weight: 600;
-                transition: all 0.3s;
+                font-size: 1.1rem;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             }
+
+            .btn-custom::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                transition: left 0.5s;
+            }
+
+            .btn-custom:hover::before {
+                left: 100%;
+            }
+
             .btn-custom:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            }
+
+            .slider-container {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .chart-container {
+                background: var(--card-bg);
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 20px;
+                border: 1px solid var(--border-color);
+            }
+
+            .loading-spinner {
+                display: inline-block;
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(255,255,255,0.1);
+                border-radius: 50%;
+                border-top-color: #667eea;
+                animation: spin 1s ease-in-out infinite;
+            }
+
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+
+            .fade-in {
+                animation: fadeIn 0.5s ease-in;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .pulse {
+                animation: pulse 2s infinite;
+            }
+
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+
+            .glass-effect {
+                backdrop-filter: blur(20px);
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .icon-large {
+                font-size: 2rem;
+                margin-bottom: 10px;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+                font-weight: 600;
+                margin-bottom: 20px;
+                color: var(--text-primary);
+            }
+
+            .stat-card {
+                background: var(--card-bg);
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                transition: all 0.3s ease;
+            }
+
+            .stat-card:hover {
+                border-color: rgba(102, 126, 234, 0.3);
+                transform: translateY(-2px);
             }
         </style>
     </head>
@@ -83,11 +317,15 @@ app.index_string = '''
 
 # App Layout
 app.layout = dbc.Container([
-    # Header
+    # Hero Section
     dbc.Row([
         dbc.Col([
-            html.H1("🎯 CIVISIM", className="text-center mb-4", style={"color": "#667eea", "fontWeight": "bold"}),
-            html.P("Advanced Policy Simulation & Social Impact Analysis", className="text-center text-muted mb-4")
+            html.Div([
+                html.I(className="fas fa-brain icon-large"),
+                html.H1("🎯 CIVISIM", className="hero-title"),
+                html.P("Advanced AI-Powered Policy Simulation & Social Impact Analysis", className="hero-subtitle"),
+                html.P("Simulate real-world policy impacts on synthetic populations with cutting-edge machine learning", className="text-center mt-3", style={"fontSize": "1rem", "opacity": "0.8"})
+            ], className="hero-section")
         ])
     ]),
 
@@ -95,42 +333,53 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dbc.Card([
-                dbc.CardHeader(html.H4("📋 Policy Configuration", className="mb-0")),
+                dbc.CardHeader([
+                    html.I(className="fas fa-cogs me-2"),
+                    html.H4("Policy Configuration", className="d-inline mb-0")
+                ]),
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Policy Description", className="fw-bold"),
+                            html.Label([
+                                html.I(className="fas fa-file-alt me-2"),
+                                "Policy Description"
+                            ], className="fw-bold mb-3"),
                             dcc.Textarea(
                                 id='policy-input',
                                 placeholder="Example: Increase scholarships for rural OBC students and waive tuition fees for families below ₹3 lakh annual income",
-                                style={'width': '100%', 'height': 120, 'borderRadius': '10px', 'padding': '15px'},
-                                className="policy-input"
+                                style={'width': '100%', 'height': 120, 'borderRadius': '15px', 'padding': '20px', 'fontSize': '1rem'},
+                                className="policy-input form-control"
                             )
                         ], width=8),
                         dbc.Col([
-                            html.Label("Simulation Parameters", className="fw-bold"),
-                            html.Br(),
-                            html.Label("Steps:", className="small"),
-                            dcc.Slider(
-                                id='steps-slider',
-                                min=5, max=50, value=10, step=5,
-                                marks={i: str(i) for i in range(5, 51, 10)}
-                            ),
-                            html.Br(),
-                            html.Label("LLM Sample Size:", className="small"),
-                            dcc.Slider(
-                                id='sample-slider',
-                                min=50, max=200, value=100, step=50,
-                                marks={50: '50', 100: '100', 150: '150', 200: '200'}
-                            ),
-                            html.Br(),
-                            dbc.Button(
-                                "🚀 Run Simulation",
-                                id="run-btn",
-                                color="primary",
-                                size="lg",
-                                className="btn-custom w-100 mt-3"
-                            )
+                            html.Div([
+                                html.Label([
+                                    html.I(className="fas fa-sliders-h me-2"),
+                                    "Simulation Parameters"
+                                ], className="fw-bold mb-3"),
+                                html.Div([
+                                    html.Label("Simulation Steps:", className="small fw-semibold"),
+                                    dcc.Slider(
+                                        id='steps-slider',
+                                        min=5, max=50, value=10, step=5,
+                                        marks={i: f'{i}' for i in range(5, 51, 10)},
+                                        className="mb-4"
+                                    ),
+                                ], className="mb-3"),
+                                html.Div([
+                                    html.Label("LLM Sample Size:", className="small fw-semibold"),
+                                    dcc.Slider(
+                                        id='sample-slider',
+                                        min=50, max=200, value=100, step=50,
+                                        marks={50: '50', 100: '100', 150: '150', 200: '200'},
+                                        className="mb-4"
+                                    ),
+                                ], className="mb-3"),
+                                dbc.Button([
+                                    html.I(className="fas fa-rocket me-2"),
+                                    "Run Simulation"
+                                ], id="run-btn", className="btn-custom w-100")
+                            ], className="slider-container")
                         ], width=4)
                     ])
                 ])
@@ -141,9 +390,10 @@ app.layout = dbc.Container([
     # Loading and Results Section
     dcc.Loading(
         id="loading",
-        type="default",
+        type="circle",
+        color="#667eea",
         children=[
-            html.Div(id="results-container")
+            html.Div(id="results-container", className="fade-in")
         ]
     ),
 
