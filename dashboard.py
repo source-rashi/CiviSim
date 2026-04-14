@@ -404,30 +404,6 @@ app.layout = dbc.Container([
 
 ], fluid=True, className="p-4")
 
-# Footer
-dbc.Row([
-    dbc.Col([
-        html.Hr(className="my-5"),
-        dbc.Card([
-            dbc.CardBody([
-                html.Div([
-                    html.I(className="fas fa-brain text-primary me-2"),
-                    html.Strong("CIVISIM v2.0"),
-                    html.Span(" — AI-Powered Policy Simulation Platform", className="text-muted ms-2")
-                ], className="text-center mb-3"),
-                html.Div([
-                    html.Small([
-                        "Built with ",
-                        html.I(className="fas fa-heart text-danger me-1"),
-                        " using Dash, Plotly, and advanced machine learning. ",
-                        html.Span("© 2026 CiviSim Team", className="text-muted")
-                    ], className="text-center d-block")
-                ], className="text-muted")
-            ])
-        ], className="glass-effect border-0")
-    ])
-]),
-
 # Callback for running simulation
 @app.callback(
     [Output('results-container', 'children'),
@@ -578,35 +554,6 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
                     ], className="card-custom mb-4")
                 ])
             ]),
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H3(f"{metrics['support'][-1]:.3f}", className="text-center text-primary"),
-                                            html.P("Policy Support", className="text-center mb-0")
-                                        ])
-                                    ], className="metric-card mb-3")
-                                ], width=3),
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H3(f"₹{int(metrics['income'][-1]):,}", className="text-center text-warning"),
-                                            html.P("Avg Income", className="text-center mb-0")
-                                        ])
-                                    ], className="metric-card mb-3")
-                                ], width=3),
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H3(f"{len(population):,}", className="text-center text-info"),
-                                            html.P("Population", className="text-center mb-0")
-                                        ])
-                                    ], className="metric-card mb-3")
-                                ], width=3)
-                            ])
-                        ])
-                    ], className="card-custom mb-4")
-                ])
-            ]),
 
             # Population Analytics
             dbc.Row([
@@ -661,34 +608,6 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
                     ], className="card-custom mb-4")
                 ])
             ]),
-                                dbc.Col([
-                                    dcc.Graph(
-                                        id='caste-chart',
-                                        figure=create_caste_chart(population),
-                                        style={'height': '400px'}
-                                    )
-                                ], width=6)
-                            ]),
-                            dbc.Row([
-                                dbc.Col([
-                                    dcc.Graph(
-                                        id='income-chart',
-                                        figure=create_income_chart(population),
-                                        style={'height': '400px'}
-                                    )
-                                ], width=6),
-                                dbc.Col([
-                                    dcc.Graph(
-                                        id='happiness-occupation-chart',
-                                        figure=create_happiness_occupation_chart(population),
-                                        style={'height': '400px'}
-                                    )
-                                ], width=6)
-                            ])
-                        ])
-                    ], className="card-custom mb-4")
-                ])
-            ]),
 
             # Policy Trajectory
             dbc.Row([
@@ -732,7 +651,6 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
                         ])
                     ], className="card-custom mb-4")
                 ])
-            ]),
             ]),
 
             # Citizen Explorer
