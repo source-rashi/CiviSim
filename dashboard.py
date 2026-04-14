@@ -397,6 +397,57 @@ app.layout = dbc.Container([
         ]
     ),
 
+    # Permanent Citizen Explorer Section (always present but hidden when no data)
+    html.Div(id="citizen-explorer-container", style={"display": "none"}, children=[
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.I(className="fas fa-user-astronaut me-2"),
+                        html.H4("Individual Citizen Analysis", className="d-inline mb-0")
+                    ]),
+                    dbc.CardBody([
+                        html.P("Explore individual citizens and their unique responses to the policy", className="text-muted mb-4"),
+                        html.Label([
+                            html.I(className="fas fa-search me-2"),
+                            "Select Citizen ID:"
+                        ], className="fw-bold mb-3"),
+                        dcc.Slider(
+                            id='citizen-slider',
+                            min=0,
+                            max=9999,  # Will be updated dynamically
+                            value=0,
+                            step=1,
+                            className="mb-4"
+                        ),
+                        html.Div(id='citizen-details', className="fade-in")
+                    ])
+                ], className="card-custom mb-4")
+            ])
+        ])
+    ]),
+
+    # Permanent Narratives Section (always present but hidden when no data)
+    html.Div(id="narratives-container", style={"display": "none"}, children=[
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.I(className="fas fa-comments me-2"),
+                        html.H4("AI-Generated Citizen Stories", className="d-inline mb-0")
+                    ]),
+                    dbc.CardBody([
+                        html.Div([
+                            html.I(className="fas fa-info-circle me-2 text-info"),
+                            html.Span("Showing AI-generated reactions from the sample population.", id="narratives-info")
+                        ], className="alert alert-info mb-4", style={"borderRadius": "10px"}),
+                        html.Div(id='narratives-content', className="fade-in")
+                    ])
+                ], className="card-custom")
+            ])
+        ])
+    ]),
+
     # Store for simulation data
     dcc.Store(id='simulation-data'),
     dcc.Store(id='population-data'),
@@ -407,6 +458,8 @@ app.layout = dbc.Container([
 # Callback for running simulation
 @app.callback(
     [Output('results-container', 'children'),
+     Output('citizen-explorer-container', 'style'),
+     Output('narratives-container', 'style'),
      Output('simulation-data', 'data'),
      Output('population-data', 'data'),
      Output('reactions-data', 'data')],
@@ -417,7 +470,7 @@ app.layout = dbc.Container([
 )
 def run_simulation_callback(n_clicks, policy, steps, sample_size):
     if n_clicks is None or not policy or not policy.strip():
-        return [], None, None, None
+        return [], {"display": "none"}, {"display": "none"}, None, None, None
 
     try:
         # Simulation logic (same as Streamlit version)
@@ -651,57 +704,10 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
                         ])
                     ], className="card-custom mb-4")
                 ])
-            ]),
-
-            # Citizen Explorer
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader([
-                            html.I(className="fas fa-user-astronaut me-2"),
-                            html.H4("Individual Citizen Analysis", className="d-inline mb-0")
-                        ]),
-                        dbc.CardBody([
-                            html.P("Explore individual citizens and their unique responses to the policy", className="text-muted mb-4"),
-                            html.Label([
-                                html.I(className="fas fa-search me-2"),
-                                "Select Citizen ID:"
-                            ], className="fw-bold mb-3"),
-                            dcc.Slider(
-                                id='citizen-slider',
-                                min=0,
-                                max=9999,  # Will be updated dynamically
-                                value=0,
-                                step=1,
-                                className="mb-4"
-                            ),
-                            html.Div(id='citizen-details', className="fade-in")
-                        ])
-                    ], className="card-custom mb-4")
-                ])
-            ]),
-
-            # Human Narratives
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader([
-                            html.I(className="fas fa-comments me-2"),
-                            html.H4("AI-Generated Citizen Stories", className="d-inline mb-0")
-                        ]),
-                        dbc.CardBody([
-                            html.Div([
-                                html.I(className="fas fa-info-circle me-2 text-info"),
-                                f"Showing 5 of {len(reactions)} LLM-simulated reactions from the sample population."
-                            ], className="alert alert-info mb-4", style={"borderRadius": "10px"}),
-                            html.Div(id='narratives-content', className="fade-in")
-                        ])
-                    ], className="card-custom")
-                ])
             ])
         ]
 
-        return results_layout, metrics, population_dict, reactions
+        return results_layout, metrics, population_dict, reactions, {"display": "block"}, {"display": "block"}
 
     except Exception as e:
         return [
@@ -949,7 +955,8 @@ def update_citizen_details(selected_id, population_data):
 
 # Callback for narratives
 @app.callback(
-    Output('narratives-content', 'children'),
+    [Output('narratives-content', 'children'),
+     Output('narratives-info', 'children')],
     [Input('reactions-data', 'data'),
      Input('population-data', 'data')]
 )
@@ -958,7 +965,7 @@ def update_narratives(reactions_data, population_data):
         return dbc.Alert([
             html.I(className="fas fa-exclamation-triangle me-2"),
             "No citizen narratives available yet. Run a simulation first."
-        ], color="info", className="text-center")
+        ], color="info", className="text-center"), "Showing AI-generated reactions from the sample population."
 
     narratives = []
     for i, reaction in enumerate(reactions_data[:5]):
@@ -1009,7 +1016,7 @@ def update_narratives(reactions_data, population_data):
             ], className="mb-4 stat-card")
         )
 
-    return narratives
+    return narratives, f"Showing 5 of {len(reactions_data)} LLM-simulated reactions from the sample population."
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8050)
