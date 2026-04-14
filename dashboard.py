@@ -404,6 +404,30 @@ app.layout = dbc.Container([
 
 ], fluid=True, className="p-4")
 
+# Footer
+dbc.Row([
+    dbc.Col([
+        html.Hr(className="my-5"),
+        dbc.Card([
+            dbc.CardBody([
+                html.Div([
+                    html.I(className="fas fa-brain text-primary me-2"),
+                    html.Strong("CIVISIM v2.0"),
+                    html.Span(" — AI-Powered Policy Simulation Platform", className="text-muted ms-2")
+                ], className="text-center mb-3"),
+                html.Div([
+                    html.Small([
+                        "Built with ",
+                        html.I(className="fas fa-heart text-danger me-1"),
+                        " using Dash, Plotly, and advanced machine learning. ",
+                        html.Span("© 2026 CiviSim Team", className="text-muted")
+                    ], className="text-center d-block")
+                ], className="text-muted")
+            ])
+        ], className="glass-effect border-0")
+    ])
+]),
+
 # Callback for running simulation
 @app.callback(
     [Output('results-container', 'children'),
@@ -772,14 +796,25 @@ def create_occupation_chart(population):
     fig = px.bar(
         x=list(occ_dist.keys()),
         y=list(occ_dist.values()),
-        title="Occupation Distribution",
+        title="",
         labels={"x": "Occupation", "y": "Citizens"},
         color_discrete_sequence=['#667eea']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='white',
+        title_font_size=16,
+        title_font_color='white',
+        xaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        yaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        margin=dict(l=20, r=20, t=40, b=20)
     )
     return fig
 
@@ -788,27 +823,43 @@ def create_caste_chart(population):
     fig = px.pie(
         names=list(caste_dist.keys()),
         values=list(caste_dist.values()),
-        title="Caste Distribution"
+        title="",
+        color_discrete_sequence=['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='white',
+        title_font_size=16,
+        title_font_color='white',
+        margin=dict(l=20, r=20, t=40, b=20)
     )
+    fig.update_traces(textposition='inside', textinfo='percent+label')
     return fig
 
 def create_income_chart(population):
     fig = px.histogram(
         income_list(population),
         nbins=30,
-        title="Income Distribution",
+        title="",
         labels={"value": "Income (₹)", "count": "Citizens"},
         color_discrete_sequence=['#764ba2']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='white',
+        title_font_size=16,
+        title_font_color='white',
+        xaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        yaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        margin=dict(l=20, r=20, t=40, b=20)
     )
     return fig
 
@@ -821,28 +872,53 @@ def create_happiness_occupation_chart(population):
     fig = px.bar(
         x=list(sorted_happiness.keys()),
         y=list(sorted_happiness.values()),
-        title="Happiness by Occupation",
+        title="",
         labels={"x": "Occupation", "y": "Avg Happiness"},
         color_discrete_sequence=['#f093fb']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='white',
+        title_font_size=16,
+        title_font_color='white',
+        xaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        yaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        margin=dict(l=20, r=20, t=40, b=20)
     )
     return fig
 
 def create_trend_chart(data, title, y_label):
     fig = px.line(
         y=data,
-        title=title,
+        title="",
         labels={"index": "Step", "y": y_label}
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='white',
+        title_font_size=16,
+        title_font_color='white',
+        xaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)',
+            title="Simulation Steps"
+        ),
+        yaxis=dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            linecolor='rgba(255,255,255,0.2)',
+            title=y_label
+        ),
+        margin=dict(l=20, r=20, t=40, b=20)
     )
+    fig.update_traces(line=dict(width=3), mode='lines+markers')
     return fig
 
 # Callback to update citizen slider max
