@@ -454,30 +454,58 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
         # Create results layout
         results_layout = [
 
+            # Success Message
+            dbc.Row([
+                dbc.Col([
+                    dbc.Alert([
+                        html.I(className="fas fa-check-circle me-2"),
+                        f"Simulation completed successfully! Processed {len(population):,} citizens across {steps} time steps."
+                    ], color="success", className="mb-4 fade-in", style={"borderRadius": "15px"})
+                ])
+            ]),
+
             # Policy Context
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("🎯 Policy Context", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-search me-2"),
+                            html.H4("Policy Analysis", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
-                                    html.Strong("Domain:"),
-                                    html.P(parsed_policy["domain"].upper(), className="text-primary mb-2")
+                                    html.Div([
+                                        html.I(className="fas fa-globe text-primary icon-large"),
+                                        html.H5("Domain", className="mt-2"),
+                                        html.P(parsed_policy["domain"].upper(), className="text-primary fw-bold mb-0")
+                                    ], className="text-center stat-card")
                                 ], width=4),
                                 dbc.Col([
-                                    html.Strong("Mechanism:"),
-                                    html.P(parsed_policy.get("mechanism", "N/A").upper(), className="text-info mb-2")
+                                    html.Div([
+                                        html.I(className="fas fa-cogs text-info icon-large"),
+                                        html.H5("Mechanism", className="mt-2"),
+                                        html.P(parsed_policy.get("mechanism", "N/A").upper(), className="text-info fw-bold mb-0")
+                                    ], className="text-center stat-card")
                                 ], width=4),
                                 dbc.Col([
-                                    html.Strong("Parsed by:"),
-                                    html.P(parsed_policy.get("parsed_by", "keyword").upper(), className="text-warning mb-2")
+                                    html.Div([
+                                        html.I(className="fas fa-brain text-warning icon-large"),
+                                        html.H5("Parser", className="mt-2"),
+                                        html.P(parsed_policy.get("parsed_by", "keyword").upper(), className="text-warning fw-bold mb-0")
+                                    ], className="text-center stat-card")
                                 ], width=4)
-                            ]),
-                            html.Strong("Affected Groups:"),
-                            html.P(", ".join(parsed_policy.get("affected_groups", ["None"])), className="mb-2"),
-                            html.Strong("Relevant Attributes:"),
-                            html.P(", ".join(attributes) if attributes else "None")
+                            ], className="mb-3"),
+                            html.Div([
+                                html.I(className="fas fa-users me-2"),
+                                html.Strong("Affected Groups:"),
+                                html.P(", ".join(parsed_policy.get("affected_groups", ["None"])), className="mb-2 d-inline ms-2")
+                            ], className="mb-2"),
+                            html.Div([
+                                html.I(className="fas fa-tags me-2"),
+                                html.Strong("Relevant Attributes:"),
+                                html.P(", ".join(attributes) if attributes else "None", className="mb-0 d-inline ms-2")
+                            ])
                         ])
                     ], className="card-custom mb-4")
                 ])
@@ -487,17 +515,45 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("📊 Executive Summary", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-chart-line me-2"),
+                            html.H4("Executive Summary", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H3(f"{metrics['happiness'][-1]:.3f}", className="text-center text-success"),
-                                            html.P("Avg Happiness", className="text-center mb-0")
-                                        ])
-                                    ], className="metric-card mb-3")
+                                    html.Div([
+                                        html.I(className="fas fa-smile-beam text-success icon-large"),
+                                        html.Div(f"{metrics['happiness'][-1]:.3f}", className="metric-value"),
+                                        html.Div("Avg Happiness", className="metric-label")
+                                    ], className="metric-card")
                                 ], width=3),
+                                dbc.Col([
+                                    html.Div([
+                                        html.I(className="fas fa-thumbs-up text-primary icon-large"),
+                                        html.Div(f"{metrics['support'][-1]:.3f}", className="metric-value"),
+                                        html.Div("Policy Support", className="metric-label")
+                                    ], className="metric-card")
+                                ], width=3),
+                                dbc.Col([
+                                    html.Div([
+                                        html.I(className="fas fa-rupee-sign text-warning icon-large"),
+                                        html.Div(f"₹{int(metrics['income'][-1]):,}", className="metric-value"),
+                                        html.Div("Avg Income", className="metric-label")
+                                    ], className="metric-card")
+                                ], width=3),
+                                dbc.Col([
+                                    html.Div([
+                                        html.I(className="fas fa-users text-info icon-large"),
+                                        html.Div(f"{len(population):,}", className="metric-value"),
+                                        html.Div("Population", className="metric-label")
+                                    ], className="metric-card")
+                                ], width=3)
+                            ])
+                        ])
+                    ], className="card-custom mb-4")
+                ])
+            ]),
                                 dbc.Col([
                                     dbc.Card([
                                         dbc.CardBody([
@@ -532,16 +588,55 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("👥 Population Analytics", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-chart-pie me-2"),
+                            html.H4("Population Demographics", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
-                                    dcc.Graph(
-                                        id='occupation-chart',
-                                        figure=create_occupation_chart(population),
-                                        style={'height': '400px'}
-                                    )
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='occupation-chart',
+                                            figure=create_occupation_chart(population),
+                                            style={'height': '350px'}
+                                        )
+                                    ], className="chart-container")
                                 ], width=6),
+                                dbc.Col([
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='caste-chart',
+                                            figure=create_caste_chart(population),
+                                            style={'height': '350px'}
+                                        )
+                                    ], className="chart-container")
+                                ], width=6)
+                            ]),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='income-chart',
+                                            figure=create_income_chart(population),
+                                            style={'height': '350px'}
+                                        )
+                                    ], className="chart-container")
+                                ], width=6),
+                                dbc.Col([
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='happiness-occupation-chart',
+                                            figure=create_happiness_occupation_chart(population),
+                                            style={'height': '350px'}
+                                        )
+                                    ], className="chart-container")
+                                ], width=6)
+                            ])
+                        ])
+                    ], className="card-custom mb-4")
+                ])
+            ]),
                                 dbc.Col([
                                     dcc.Graph(
                                         id='caste-chart',
@@ -575,51 +670,70 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("📈 Policy Trajectory", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-chart-area me-2"),
+                            html.H4("Policy Impact Timeline", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
+                            html.P(f"Time-series analysis over {steps} simulation steps", className="text-muted mb-4"),
                             dbc.Row([
                                 dbc.Col([
-                                    dcc.Graph(
-                                        id='happiness-trend',
-                                        figure=create_trend_chart(metrics['happiness'], "Happiness Over Time", "Happiness"),
-                                        style={'height': '300px'}
-                                    )
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='happiness-trend',
+                                            figure=create_trend_chart(metrics['happiness'], "Happiness Trajectory", "Happiness"),
+                                            style={'height': '300px'}
+                                        )
+                                    ], className="chart-container")
                                 ], width=4),
                                 dbc.Col([
-                                    dcc.Graph(
-                                        id='support-trend',
-                                        figure=create_trend_chart(metrics['support'], "Policy Support Over Time", "Support"),
-                                        style={'height': '300px'}
-                                    )
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='support-trend',
+                                            figure=create_trend_chart(metrics['support'], "Support Trajectory", "Support"),
+                                            style={'height': '300px'}
+                                        )
+                                    ], className="chart-container")
                                 ], width=4),
                                 dbc.Col([
-                                    dcc.Graph(
-                                        id='income-trend',
-                                        figure=create_trend_chart(metrics['income'], "Income Over Time", "Income (₹)"),
-                                        style={'height': '300px'}
-                                    )
+                                    html.Div([
+                                        dcc.Graph(
+                                            id='income-trend',
+                                            figure=create_trend_chart(metrics['income'], "Income Trajectory", "Income (₹)"),
+                                            style={'height': '300px'}
+                                        )
+                                    ], className="chart-container")
                                 ], width=4)
                             ])
                         ])
                     ], className="card-custom mb-4")
                 ])
             ]),
+            ]),
 
             # Citizen Explorer
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("🔍 Citizen Explorer", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-user-astronaut me-2"),
+                            html.H4("Individual Citizen Analysis", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
-                            html.Label("Select Citizen ID:"),
+                            html.P("Explore individual citizens and their unique responses to the policy", className="text-muted mb-4"),
+                            html.Label([
+                                html.I(className="fas fa-search me-2"),
+                                "Select Citizen ID:"
+                            ], className="fw-bold mb-3"),
                             dcc.Slider(
                                 id='citizen-slider',
                                 min=0,
                                 max=9999,  # Will be updated dynamically
                                 value=0,
-                                step=1
+                                step=1,
+                                className="mb-4"
                             ),
-                            html.Div(id='citizen-details')
+                            html.Div(id='citizen-details', className="fade-in")
                         ])
                     ], className="card-custom mb-4")
                 ])
@@ -629,10 +743,16 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H4("📖 Human Narratives", className="mb-0")),
+                        dbc.CardHeader([
+                            html.I(className="fas fa-comments me-2"),
+                            html.H4("AI-Generated Citizen Stories", className="d-inline mb-0")
+                        ]),
                         dbc.CardBody([
-                            html.P(f"Showing 5 of {len(reactions)} LLM-simulated reactions.", className="text-muted"),
-                            html.Div(id='narratives-content')
+                            html.Div([
+                                html.I(className="fas fa-info-circle me-2 text-info"),
+                                f"Showing 5 of {len(reactions)} LLM-simulated reactions from the sample population."
+                            ], className="alert alert-info mb-4", style={"borderRadius": "10px"}),
+                            html.Div(id='narratives-content', className="fade-in")
                         ])
                     ], className="card-custom")
                 ])
@@ -741,34 +861,95 @@ def update_slider_max(population_data):
 )
 def update_citizen_details(selected_id, population_data):
     if population_data is None or selected_id >= len(population_data):
-        return "No data available"
+        return dbc.Alert("No citizen data available", color="warning", className="text-center")
 
     citizen = population_data[selected_id]
 
     return dbc.Row([
         dbc.Col([
             dbc.Card([
+                dbc.CardHeader([
+                    html.I(className="fas fa-id-card me-2"),
+                    f"Citizen Profile #{citizen['cid']}"
+                ]),
                 dbc.CardBody([
-                    html.H5(f"Citizen {citizen['cid']}", className="card-title"),
-                    html.P(f"Age: {citizen['age']}"),
-                    html.P(f"Income: ₹{int(citizen['income']):,}"),
-                    html.P(f"Occupation: {citizen['occupation']}"),
-                    html.P(f"Caste: {citizen['caste']}"),
-                    html.P(f"Location: {citizen['location']}")
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-birthday-cake text-primary me-2"),
+                                html.Strong("Age:"),
+                                html.Span(f" {citizen['age']} years", className="ms-2")
+                            ], className="mb-3")
+                        ], width=6),
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-map-marker-alt text-info me-2"),
+                                html.Strong("Location:"),
+                                html.Span(f" {citizen['location']}", className="ms-2")
+                            ], className="mb-3")
+                        ], width=6)
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-briefcase text-success me-2"),
+                                html.Strong("Occupation:"),
+                                html.Span(f" {citizen['occupation']}", className="ms-2")
+                            ], className="mb-3")
+                        ], width=6),
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-users text-warning me-2"),
+                                html.Strong("Caste:"),
+                                html.Span(f" {citizen['caste']}", className="ms-2")
+                            ], className="mb-3")
+                        ], width=6)
+                    ]),
+                    html.Div([
+                        html.I(className="fas fa-rupee-sign text-warning me-2"),
+                        html.Strong("Income:"),
+                        html.Span(f" ₹{int(citizen['income']):,} per month", className="ms-2 text-success fw-bold")
+                    ], className="mb-3")
                 ])
-            ], className="mb-3")
+            ], className="stat-card mb-3")
         ], width=6),
         dbc.Col([
             dbc.Card([
+                dbc.CardHeader([
+                    html.I(className="fas fa-brain me-2"),
+                    "Policy Response & Personality"
+                ]),
                 dbc.CardBody([
-                    html.P(f"Happiness: {citizen['happiness']:.3f}"),
-                    html.P(f"Policy Support: {citizen['policy_support']:.3f}"),
-                    html.Strong("Traits:"),
-                    html.P(", ".join(citizen.get('traits', []))),
-                    html.Strong("Extra Attributes:"),
-                    html.P(str(citizen.get('extra_attributes', {})))
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-smile-beam text-success me-2"),
+                                html.Strong("Happiness:"),
+                                html.Span(f" {citizen['happiness']:.3f}", className="ms-2 badge bg-success")
+                            ], className="mb-3")
+                        ], width=6),
+                        dbc.Col([
+                            html.Div([
+                                html.I(className="fas fa-thumbs-up text-primary me-2"),
+                                html.Strong("Policy Support:"),
+                                html.Span(f" {citizen['policy_support']:.3f}", className="ms-2 badge bg-primary")
+                            ], className="mb-3")
+                        ], width=6)
+                    ]),
+                    html.Div([
+                        html.I(className="fas fa-dna text-info me-2"),
+                        html.Strong("Personality Traits:"),
+                        html.Div([
+                            html.Span(trait, className="badge bg-info me-1 mb-1") for trait in citizen.get('traits', [])
+                        ], className="ms-2 mt-2")
+                    ], className="mb-3"),
+                    html.Div([
+                        html.I(className="fas fa-plus-circle text-secondary me-2"),
+                        html.Strong("Extra Attributes:"),
+                        html.Pre(str(citizen.get('extra_attributes', {})), className="ms-2 mt-2 small text-muted bg-light p-2 rounded")
+                    ])
                 ])
-            ])
+            ], className="stat-card")
         ], width=6)
     ])
 
@@ -780,29 +961,58 @@ def update_citizen_details(selected_id, population_data):
 )
 def update_narratives(reactions_data, population_data):
     if reactions_data is None or population_data is None:
-        return "No narratives available"
+        return dbc.Alert([
+            html.I(className="fas fa-exclamation-triangle me-2"),
+            "No citizen narratives available yet. Run a simulation first."
+        ], color="info", className="text-center")
 
     narratives = []
     for i, reaction in enumerate(reactions_data[:5]):
         citizen = population_data[i]
         narratives.append(
             dbc.Card([
+                dbc.CardHeader([
+                    html.I(className="fas fa-user-circle me-2 text-primary"),
+                    html.Strong(f"Citizen {i + 1}"),
+                    html.Span(f" • {citizen['age']}yr • {citizen['occupation']}", className="text-muted ms-2 small")
+                ], className="bg-light"),
                 dbc.CardBody([
-                    html.H6(f"Citizen {i + 1} — {citizen['age']}yr {citizen['occupation']}, {citizen['caste']}, {citizen['location']}, ₹{int(citizen['income']):,}/month"),
-                    html.P(reaction.get("diary_entry", "No entry available.")),
                     dbc.Row([
                         dbc.Col([
-                            dbc.Badge(f"Δ Happiness: {reaction.get('happiness_change', 0):.3f}", color="success", className="me-2")
-                        ]),
+                            html.Div([
+                                html.I(className="fas fa-users text-warning me-2"),
+                                html.Small(f"{citizen['caste']} • {citizen['location']}", className="text-muted")
+                            ], className="mb-2"),
+                            html.Div([
+                                html.I(className="fas fa-rupee-sign text-success me-2"),
+                                html.Small(f"₹{int(citizen['income']):,} monthly income", className="text-muted")
+                            ])
+                        ], width=8),
                         dbc.Col([
-                            dbc.Badge(f"Δ Support: {reaction.get('support_change', 0):.3f}", color="primary", className="me-2")
-                        ]),
-                        dbc.Col([
-                            dbc.Badge(f"Δ Income: ₹{int(reaction.get('income_change', 0)):,}", color="warning")
+                            html.Div([
+                                dbc.Badge([
+                                    html.I(className="fas fa-smile-beam me-1"),
+                                    f"{reaction.get('happiness_change', 0):.3f}"
+                                ], color="success", className="me-1 mb-1"),
+                                dbc.Badge([
+                                    html.I(className="fas fa-thumbs-up me-1"),
+                                    f"{reaction.get('support_change', 0):.3f}"
+                                ], color="primary", className="me-1 mb-1"),
+                                dbc.Badge([
+                                    html.I(className="fas fa-rupee-sign me-1"),
+                                    f"₹{int(reaction.get('income_change', 0)):,}"
+                                ], color="warning")
+                            ], className="text-end")
+                        ], width=4)
+                    ], className="mb-3"),
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.I(className="fas fa-quote-left text-muted me-2"),
+                            html.Span(reaction.get("diary_entry", "No personal reflection available."), className="fst-italic")
                         ])
-                    ])
+                    ], className="bg-light border-0")
                 ])
-            ], className="mb-3")
+            ], className="mb-4 stat-card")
         )
 
     return narratives
