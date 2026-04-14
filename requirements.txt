@@ -6,3 +6,7 @@ networkx
 python-dotenv
 google-genai
 plotly
+dash
+dash-bootstrap-components
+groq
+gunicorn

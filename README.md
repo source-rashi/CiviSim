@@ -17,7 +17,7 @@ estimates citizen-level reactions, and visualizes system-wide outcomes over time
 ## Tech Stack
 
 - Python
-- Streamlit
+- **Dash** (Modern Web Dashboard) or Streamlit (Basic Dashboard)
 - PyTorch
 - Plotly
 - Pandas / NumPy
@@ -28,7 +28,10 @@ estimates citizen-level reactions, and visualizes system-wide outcomes over time
 
 ```text
 civisim/
-	app.py
+	app.py                    # Original Streamlit app
+	dashboard.py              # Modern Dash dashboard
+	run_dashboard.py          # Dashboard launcher script
+	DASHBOARD_README.md       # Dash dashboard documentation
 	ai_models/
 	policy_engine/
 	population/
@@ -58,13 +61,37 @@ GEMINI_API_KEY=your_actual_api_key
 
 Without a valid key, LLM reaction generation returns a configuration error message.
 
-### 3) Run the app
+### 3) Choose your dashboard
 
+#### Option A: Modern Dash Dashboard (Recommended)
+```bash
+python run_dashboard.py
+```
+or
+```bash
+python dashboard.py
+```
+
+#### Option B: Original Streamlit Dashboard
 ```bash
 streamlit run app.py
 ```
 
-Then open the local Streamlit URL shown in your terminal.
+Then open the local URL shown in your terminal (Dash: http://localhost:8050, Streamlit: usually http://localhost:8501).
+
+## Dashboard Comparison
+
+| Feature | Streamlit | Dash |
+|---------|-----------|------|
+| 🎨 **UI Design** | Basic, functional | Modern, aesthetic with dark theme |
+| 📱 **Responsiveness** | Basic | Bootstrap-based responsive layout |
+| 🎯 **Interactivity** | Limited | Advanced callbacks and state management |
+| ⚡ **Performance** | Good | Excellent for complex dashboards |
+| 🚀 **Deployment** | Streamlit Cloud | Any WSGI server (Heroku, AWS, etc.) |
+| 🎨 **Customization** | Limited | Extensive CSS and component control |
+| 📊 **Charts** | Plotly integration | Native Plotly with custom styling |
+
+**Recommendation**: Use the **Dash dashboard** for production deployments and the **Streamlit app** for quick prototyping.
 
 ## Testing
 
