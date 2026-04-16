@@ -372,6 +372,7 @@ const Dashboard: React.FC = () => {
     border: `1px solid ${colors.cardBorder}`,
     overflow: 'hidden',
     minWidth: 0,
+    height: '100%',
     boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
     transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
     '&:hover': {
@@ -430,7 +431,7 @@ const Dashboard: React.FC = () => {
         py: { xs: 3, sm: 4, md: 5 },
       }}
     >
-      <Container maxWidth="lg" sx={{ overflowX: 'hidden' }}>
+      <Container maxWidth="lg" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
         <motion.div
           initial={{ opacity: 0, y: 34 }}
           animate={{ opacity: 1, y: 0 }}
@@ -483,13 +484,13 @@ const Dashboard: React.FC = () => {
               <Avatar
                 aria-label="CiviSim icon"
                 sx={{
-                  width: 80,
-                  height: 80,
+                  width: { xs: 68, sm: 80 },
+                  height: { xs: 68, sm: 80 },
                   background: 'linear-gradient(135deg, #3b82f6 0%, #38bdf8 100%)',
                   boxShadow: '0 14px 32px rgba(56, 189, 248, 0.34)',
                 }}
               >
-                <Box component="svg" viewBox="0 0 24 24" sx={{ width: 38, height: 38 }}>
+                <Box component="svg" viewBox="0 0 24 24" sx={{ width: { xs: 32, sm: 38 }, height: { xs: 32, sm: 38 } }}>
                   <path
                     d="M12 2.4 4.3 6.8v10.4L12 21.6l7.7-4.4V6.8L12 2.4Zm0 2.6 5.3 3-5.3 3-5.3-3 5.3-3Zm-6 5.4 5 2.9v5.6l-5-2.9v-5.6Zm12 0V16l-5 2.9v-5.6l5-2.9Z"
                     fill="#071423"
@@ -689,7 +690,14 @@ const Dashboard: React.FC = () => {
               </Alert>
             )}
 
-            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+            <Grid
+              container
+              spacing={{ xs: 2, sm: 2.5, md: 3 }}
+              sx={{
+                '& > .MuiGrid-root': { minWidth: 0 },
+                '& > *': { alignSelf: 'stretch' },
+              }}
+            >
               <Grid size={{ xs: 12 }}>
                 <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
                   <Card
@@ -700,7 +708,7 @@ const Dashboard: React.FC = () => {
                     }}
                   >
                     <CardContent>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.2, mb: 1 }}>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1.2, mb: 1 }}>
                         <Typography variant="h5" sx={{ color: colors.text }}>
                           Policy Recommendation
                         </Typography>
