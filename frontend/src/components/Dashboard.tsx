@@ -425,24 +425,53 @@ const Dashboard: React.FC = () => {
               boxShadow: '0 20px 50px rgba(2, 8, 23, 0.44)',
             }}
           >
-            <Typography variant="h2" component="h1" gutterBottom align="center" sx={{ color: colors.text }}>
+            <Typography
+              variant="h2"
+              component="h1"
+              gutterBottom
+              align="center"
+              sx={{
+                color: colors.text,
+                maxWidth: { xs: '100%', md: 920 },
+                mx: 'auto',
+                lineHeight: { xs: 1.12, md: 1.16 },
+                fontSize: { xs: '1.95rem', sm: '2.4rem', md: '3.1rem' },
+                overflowWrap: 'anywhere',
+              }}
+            >
               CiviSim Dashboard
             </Typography>
-            <Typography variant="h5" align="center" sx={{ color: colors.textMuted, mb: 3 }}>
+            <Typography
+              variant="h5"
+              align="center"
+              sx={{
+                color: colors.textMuted,
+                mb: 3,
+                maxWidth: { xs: '100%', md: 940 },
+                mx: 'auto',
+                lineHeight: 1.35,
+                fontSize: { xs: '1rem', sm: '1.15rem', md: '1.45rem' },
+                overflowWrap: 'anywhere',
+              }}
+            >
               Deep policy simulation with LLM sampling, model training, and timeline dynamics
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
               <Avatar
+                aria-label="CiviSim icon"
                 sx={{
                   width: 80,
                   height: 80,
-                  fontSize: '1.8rem',
-                  fontWeight: 700,
                   background: 'linear-gradient(135deg, #3b82f6 0%, #38bdf8 100%)',
                   boxShadow: '0 14px 32px rgba(56, 189, 248, 0.34)',
                 }}
               >
-                C
+                <Box component="svg" viewBox="0 0 24 24" sx={{ width: 38, height: 38 }}>
+                  <path
+                    d="M12 2.4 4.3 6.8v10.4L12 21.6l7.7-4.4V6.8L12 2.4Zm0 2.6 5.3 3-5.3 3-5.3-3 5.3-3Zm-6 5.4 5 2.9v5.6l-5-2.9v-5.6Zm12 0V16l-5 2.9v-5.6l5-2.9Z"
+                    fill="#071423"
+                  />
+                </Box>
               </Avatar>
             </Box>
 
