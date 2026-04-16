@@ -35,34 +35,34 @@ app.index_string = '''
         <title>{%title%}</title>
         {%favicon%}
         {%css%}
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
             :root {
-                --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-                --dark-bg: #1a1a1a;
-                --darker-bg: #121212;
-                --card-bg: rgba(255, 255, 255, 0.02);
-                --border-color: rgba(255, 255, 255, 0.1);
-                --text-primary: #ffffff;
-                --text-secondary: #b0b0b0;
+                --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #38bdf8 100%);
+                --secondary-gradient: linear-gradient(135deg, #111f38 0%, #1e3a8a 100%);
+                --success-gradient: linear-gradient(135deg, #0f4c81 0%, #0ea5e9 100%);
+                --warning-gradient: linear-gradient(135deg, #1d4ed8 0%, #22d3ee 100%);
+                --dark-bg: #06090f;
+                --darker-bg: #03060d;
+                --card-bg: rgba(9, 20, 37, 0.74);
+                --border-color: rgba(110, 164, 248, 0.25);
+                --text-primary: #eaf1ff;
+                --text-secondary: #a8bddf;
                 --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
                 --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
             }
 
             * {
-                font-family: 'Inter', sans-serif;
+                font-family: 'Manrope', sans-serif;
             }
 
             body {
                 background: var(--dark-bg);
                 color: var(--text-primary);
                 background-image:
-                    radial-gradient(circle at 25% 25%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 75% 75%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+                    radial-gradient(circle at 18% 24%, rgba(56, 189, 248, 0.13) 0%, transparent 45%),
+                    radial-gradient(circle at 82% 78%, rgba(59, 130, 246, 0.14) 0%, transparent 46%);
                 min-height: 100vh;
             }
 
@@ -99,6 +99,7 @@ app.index_string = '''
             .hero-title {
                 font-size: 3.5rem;
                 font-weight: 700;
+                font-family: 'Sora', sans-serif;
                 margin-bottom: 10px;
                 position: relative;
                 z-index: 1;
@@ -135,7 +136,7 @@ app.index_string = '''
             .card-custom:hover {
                 transform: translateY(-5px);
                 box-shadow: var(--shadow-hover);
-                border-color: rgba(102, 126, 234, 0.3);
+                border-color: rgba(56, 189, 248, 0.58);
             }
 
             .metric-card {
@@ -181,12 +182,12 @@ app.index_string = '''
                 border: 2px solid var(--border-color);
                 border-radius: 15px;
                 color: var(--text-primary);
-                transition: all 0.3s ease;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
             .policy-input:focus {
-                border-color: #667eea;
-                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+                border-color: #38bdf8;
+                box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
                 background: rgba(255, 255, 255, 0.08);
             }
 
@@ -200,7 +201,7 @@ app.index_string = '''
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 position: relative;
                 overflow: hidden;
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                box-shadow: 0 6px 18px rgba(37, 99, 235, 0.36);
             }
 
             .btn-custom::before {
@@ -220,7 +221,7 @@ app.index_string = '''
 
             .btn-custom:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+                box-shadow: 0 10px 28px rgba(14, 165, 233, 0.44);
             }
 
             .slider-container {
@@ -244,7 +245,7 @@ app.index_string = '''
                 height: 40px;
                 border: 3px solid rgba(255,255,255,0.1);
                 border-radius: 50%;
-                border-top-color: #667eea;
+                border-top-color: #38bdf8;
                 animation: spin 1s ease-in-out infinite;
             }
 
@@ -299,7 +300,7 @@ app.index_string = '''
             }
 
             .stat-card:hover {
-                border-color: rgba(102, 126, 234, 0.3);
+                border-color: rgba(56, 189, 248, 0.52);
                 transform: translateY(-2px);
             }
         </style>
@@ -391,7 +392,7 @@ app.layout = dbc.Container([
     dcc.Loading(
         id="loading",
         type="circle",
-        color="#667eea",
+        color="#38bdf8",
         children=[
             html.Div(id="results-container", className="fade-in")
         ]
@@ -707,12 +708,12 @@ def run_simulation_callback(n_clicks, policy, steps, sample_size):
             ])
         ]
 
-        return results_layout, metrics, population_dict, reactions, {"display": "block"}, {"display": "block"}
+        return results_layout, {"display": "block"}, {"display": "block"}, metrics, population_dict, reactions
 
     except Exception as e:
         return [
             dbc.Alert(f"Error running simulation: {str(e)}", color="danger", className="mt-3")
-        ], None, None, None
+        ], {"display": "none"}, {"display": "none"}, None, None, None
 
 # Helper functions for creating charts
 def create_occupation_chart(population):
@@ -722,7 +723,7 @@ def create_occupation_chart(population):
         y=list(occ_dist.values()),
         title="",
         labels={"x": "Occupation", "y": "Citizens"},
-        color_discrete_sequence=['#667eea']
+        color_discrete_sequence=['#38bdf8']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
@@ -748,7 +749,7 @@ def create_caste_chart(population):
         names=list(caste_dist.keys()),
         values=list(caste_dist.values()),
         title="",
-        color_discrete_sequence=['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']
+        color_discrete_sequence=['#38bdf8', '#3b82f6', '#2563eb', '#1d4ed8', '#0ea5e9']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
@@ -767,7 +768,7 @@ def create_income_chart(population):
         nbins=30,
         title="",
         labels={"value": "Income (₹)", "count": "Citizens"},
-        color_discrete_sequence=['#764ba2']
+        color_discrete_sequence=['#2563eb']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
@@ -798,7 +799,7 @@ def create_happiness_occupation_chart(population):
         y=list(sorted_happiness.values()),
         title="",
         labels={"x": "Occupation", "y": "Avg Happiness"},
-        color_discrete_sequence=['#f093fb']
+        color_discrete_sequence=['#0ea5e9']
     )
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
@@ -819,6 +820,12 @@ def create_happiness_occupation_chart(population):
     return fig
 
 def create_trend_chart(data, title, y_label):
+    line_color = '#38bdf8'
+    if 'Support' in y_label:
+        line_color = '#3b82f6'
+    elif 'Income' in y_label:
+        line_color = '#1d4ed8'
+
     fig = px.line(
         y=data,
         title="",
@@ -842,7 +849,11 @@ def create_trend_chart(data, title, y_label):
         ),
         margin=dict(l=20, r=20, t=40, b=20)
     )
-    fig.update_traces(line=dict(width=3), mode='lines+markers')
+    fig.update_traces(
+        line=dict(width=3, color=line_color),
+        marker=dict(color=line_color),
+        mode='lines+markers'
+    )
     return fig
 
 # Callback to update citizen slider max
