@@ -370,6 +370,8 @@ const Dashboard: React.FC = () => {
     backdropFilter: 'blur(14px)',
     borderRadius: 4,
     border: `1px solid ${colors.cardBorder}`,
+    overflow: 'hidden',
+    minWidth: 0,
     boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
     transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
     '&:hover': {
@@ -398,16 +400,37 @@ const Dashboard: React.FC = () => {
     },
   };
 
+  const wrappedTextSx = {
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
+  };
+
+  const wrappedChipSx = {
+    color: colors.text,
+    maxWidth: '100%',
+    height: 'auto',
+    '& .MuiChip-label': {
+      display: 'block',
+      whiteSpace: 'normal',
+      wordBreak: 'break-word',
+      overflowWrap: 'anywhere',
+      lineHeight: 1.2,
+      py: 0.65,
+    },
+  };
+
   return (
     <Box
       sx={{
         minHeight: '100vh',
+        overflowX: 'hidden',
         background:
           'radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.24) 0%, rgba(7, 11, 18, 0) 35%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.22) 0%, rgba(7, 11, 18, 0) 42%), linear-gradient(160deg, #05070d 0%, #0a1220 55%, #060a13 100%)',
         py: { xs: 3, sm: 4, md: 5 },
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ overflowX: 'hidden' }}>
         <motion.div
           initial={{ opacity: 0, y: 34 }}
           animate={{ opacity: 1, y: 0 }}
@@ -483,9 +506,9 @@ const Dashboard: React.FC = () => {
                   onClick={() => setPolicy(preset)}
                   disabled={loading}
                   sx={{
-                    flex: { xs: '1 1 100%', sm: '1 1 300px' },
-                    maxWidth: { xs: '100%', sm: 360 },
-                    minHeight: 54,
+                    flex: { xs: '1 1 100%', sm: '1 1 320px' },
+                    maxWidth: { xs: '100%', sm: 420 },
+                    minHeight: 56,
                     height: 'auto',
                     alignItems: 'flex-start',
                     borderRadius: 999,
@@ -496,10 +519,11 @@ const Dashboard: React.FC = () => {
                       display: 'block',
                       whiteSpace: 'normal',
                       wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
                       textAlign: 'left',
                       lineHeight: 1.3,
-                      px: 1.8,
-                      py: 1.1,
+                      px: 2,
+                      py: 1.25,
                     },
                     '&:hover': {
                       backgroundColor: 'rgba(56, 189, 248, 0.28)',
@@ -683,45 +707,45 @@ const Dashboard: React.FC = () => {
                         <Chip
                           label={recommendationLabel}
                           sx={{
-                            color: colors.text,
                             fontWeight: 700,
                             border: `1px solid ${recommendationPalette.border}`,
                             backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
                           }}
                         />
                         <Chip
                           label={`Confidence: ${((results.policy_analysis.recommendation_confidence ?? 0.5) * 100).toFixed(0)}%`}
                           sx={{
-                            color: colors.text,
                             border: `1px solid ${recommendationPalette.border}`,
                             backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
                           }}
                         />
                         {results.policy_analysis.recommendation_source && (
                           <Chip
                             label={`Source: ${results.policy_analysis.recommendation_source}`}
                             sx={{
-                              color: colors.text,
                               border: `1px solid ${recommendationPalette.border}`,
                               backgroundColor: recommendationPalette.chipBg,
+                              ...wrappedChipSx,
                             }}
                           />
                         )}
                       </Box>
 
-                      <Typography sx={{ color: colors.textMuted, mb: 1.2 }}>
+                      <Typography sx={{ color: colors.textMuted, mb: 1.2, ...wrappedTextSx }}>
                         {results.policy_analysis.recommendation_reasoning ||
                           'No recommendation narrative was returned for this run.'}
                       </Typography>
 
                       {(results.policy_analysis.recommendation_key_risks || []).length > 0 && (
-                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8 }}>
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
                           Risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
                         </Typography>
                       )}
 
                       {(results.policy_analysis.recommendation_conditions || []).length > 0 && (
-                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                        <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                           Conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
                         </Typography>
                       )}
@@ -737,7 +761,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Happiness Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
                         {happinessSeries.length > 0 ? (
                           <Line data={happinessData} options={lineChartOptions} />
                         ) : (
@@ -758,7 +782,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Policy Support Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
                         {supportSeries.length > 0 ? (
                           <Line data={supportData} options={lineChartOptions} />
                         ) : (
@@ -779,7 +803,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Average Income Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
                         {incomeSeries.length > 0 ? (
                           <Line data={incomeData} options={lineChartOptions} />
                         ) : (
@@ -800,7 +824,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Occupation Distribution
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
                         {Object.keys(results.population_stats.occupations || {}).length > 0 ? (
                           <Pie data={occupationData} options={pieChartOptions} />
                         ) : (
@@ -821,20 +845,20 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Policy Analysis
                       </Typography>
-                      <Typography sx={{ color: colors.textMuted, mb: 1.5 }}>
+                      <Typography sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.summary}
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Domain: ${results.policy_analysis.domain}`} sx={{ color: colors.text }} />
-                        <Chip label={`Mechanism: ${results.policy_analysis.mechanism}`} sx={{ color: colors.text }} />
-                        <Chip label={`Parser: ${results.policy_analysis.parsed_by}`} sx={{ color: colors.text }} />
-                        <Chip label={`Time effect: ${results.policy_analysis.time_effect}`} sx={{ color: colors.text }} />
+                        <Chip label={`Domain: ${results.policy_analysis.domain}`} sx={wrappedChipSx} />
+                        <Chip label={`Mechanism: ${results.policy_analysis.mechanism}`} sx={wrappedChipSx} />
+                        <Chip label={`Parser: ${results.policy_analysis.parsed_by}`} sx={wrappedChipSx} />
+                        <Chip label={`Time effect: ${results.policy_analysis.time_effect}`} sx={wrappedChipSx} />
                       </Box>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
                         Affected Groups
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.affected_groups.length > 0
                           ? results.policy_analysis.affected_groups.join(', ')
                           : 'No explicit groups extracted in this run.'}
@@ -843,7 +867,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
                         Key Attributes
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {results.policy_analysis.key_attributes.length > 0
                           ? results.policy_analysis.key_attributes.join(', ')
                           : 'No key attributes extracted in this run.'}
@@ -852,7 +876,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
                         Potential Winners
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_winners || []).length > 0
                           ? (results.policy_analysis.potential_winners || []).join(', ')
                           : 'No clear winner groups identified.'}
@@ -861,7 +885,7 @@ const Dashboard: React.FC = () => {
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
                         Potential Losers
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_losers || []).length > 0
                           ? (results.policy_analysis.potential_losers || []).join(', ')
                           : 'No explicit loser groups identified.'}
@@ -879,26 +903,26 @@ const Dashboard: React.FC = () => {
                         Pipeline Diagnostics
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={{ color: colors.text }} />
-                        {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={{ color: colors.text }} />}
-                        <Chip label={`Population: ${results.pipeline.population_size}`} sx={{ color: colors.text }} />
-                        <Chip label={`Sample: ${results.pipeline.sample_size}`} sx={{ color: colors.text }} />
-                        <Chip label={`Steps: ${results.pipeline.steps}`} sx={{ color: colors.text }} />
-                        <Chip label={`Epochs: ${results.pipeline.training_epochs}`} sx={{ color: colors.text }} />
+                        <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
+                        {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
+                        <Chip label={`Population: ${results.pipeline.population_size}`} sx={wrappedChipSx} />
+                        <Chip label={`Sample: ${results.pipeline.sample_size}`} sx={wrappedChipSx} />
+                        <Chip label={`Steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
+                        <Chip label={`Epochs: ${results.pipeline.training_epochs}`} sx={wrappedChipSx} />
                         {results.pipeline.sample_strategy && (
-                          <Chip label={`Sampling: ${results.pipeline.sample_strategy}`} sx={{ color: colors.text }} />
+                          <Chip label={`Sampling: ${results.pipeline.sample_strategy}`} sx={wrappedChipSx} />
                         )}
                       </Box>
-                      <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8 }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
                         Total runtime: {toDisplayMs(results.pipeline.timings_ms.total_ms)}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         Parse: {toDisplayMs(results.pipeline.timings_ms.parse_policy_ms)} | Mapping: {toDisplayMs(results.pipeline.timings_ms.map_attributes_ms)}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         Population: {toDisplayMs(results.pipeline.timings_ms.population_generation_ms)} | LLM sample: {toDisplayMs(results.pipeline.timings_ms.llm_sampling_ms)}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         Training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
                       </Typography>
 
@@ -907,13 +931,13 @@ const Dashboard: React.FC = () => {
                           <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.4, mb: 0.6 }}>
                             Model Validation
                           </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             Samples: total {results.pipeline.model_validation.samples_total}, train {results.pipeline.model_validation.samples_train}, val {results.pipeline.model_validation.samples_validation}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             Train loss: {results.pipeline.model_validation.train_loss.toFixed(4)} | Train MAE: {results.pipeline.model_validation.train_mae.toFixed(4)}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             Val loss: {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Val MAE: {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
                           </Typography>
                         </>
@@ -931,9 +955,9 @@ const Dashboard: React.FC = () => {
                         Population Stats
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                        <Chip label={`Total: ${results.population_stats.total}`} sx={{ color: colors.text }} />
-                        <Chip label={`Income start: Rs ${results.population_stats.avg_income_start.toFixed(0)}`} sx={{ color: colors.text }} />
-                        <Chip label={`Income end: Rs ${results.population_stats.avg_income_end.toFixed(0)}`} sx={{ color: colors.text }} />
+                        <Chip label={`Total: ${results.population_stats.total}`} sx={wrappedChipSx} />
+                        <Chip label={`Income start: Rs ${results.population_stats.avg_income_start.toFixed(0)}`} sx={wrappedChipSx} />
+                        <Chip label={`Income end: Rs ${results.population_stats.avg_income_end.toFixed(0)}`} sx={wrappedChipSx} />
                       </Box>
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
                         Top castes in generated population
@@ -946,8 +970,8 @@ const Dashboard: React.FC = () => {
                               label={`${caste.toUpperCase()}: ${count}`}
                               sx={{
                                 backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                color: colors.text,
                                 border: '1px solid rgba(59, 130, 246, 0.35)',
+                                ...wrappedChipSx,
                               }}
                             />
                           ))
@@ -980,13 +1004,13 @@ const Dashboard: React.FC = () => {
                             backgroundColor: 'rgba(12, 24, 42, 0.55)',
                           }}
                         >
-                          <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
+                          <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5, ...wrappedTextSx }}>
                             Citizen #{reaction.citizen_id} - {reaction.occupation} ({reaction.location})
                           </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4 }}>
+                          <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4, ...wrappedTextSx }}>
                             Happiness: {reaction.happiness_change.toFixed(3)} | Support: {reaction.support_change.toFixed(3)} | Income: Rs {reaction.income_change.toFixed(0)}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             {reaction.diary_entry}
                           </Typography>
                         </Box>
