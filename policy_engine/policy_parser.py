@@ -36,8 +36,8 @@ def _keyword_parse(policy_text):
 
     logger.warning(
         "Using keyword fallback for policy parsing. "
-        "Affected groups and key attributes will be empty. "
-        "Install google-generativeai and set GEMINI_API_KEY for full parsing."
+        "Affected groups and key attributes will be sparse. "
+        "Install and configure Groq (GROQ_API_KEY) for full parsing quality."
     )
 
     return {
@@ -87,7 +87,7 @@ def parse_policy(policy_text):
     """
     Parse a natural language policy into structured data.
 
-    Primary: uses Gemini to extract domain, affected groups, mechanism, etc.
+    Primary: uses LLM parsing to extract domain, affected groups, mechanism, etc.
     Fallback: keyword-based detection if Gemini is unavailable.
 
     Returns a dict with keys:
@@ -105,7 +105,7 @@ def parse_policy(policy_text):
         raw = generate_response(prompt)
 
         if raw is None:
-            # Gemini not available — use keyword fallback
+            # LLM unavailable — use keyword fallback
             return _keyword_parse(policy_text)
 
         # Clean and parse the JSON response
@@ -126,11 +126,11 @@ def parse_policy(policy_text):
             "summary":           parsed.get("summary", policy_text),
             "potential_winners": parsed.get("potential_winners", []),
             "potential_losers":  parsed.get("potential_losers", []),
-            "parsed_by":         "gemini"
+            "parsed_by":         "llm"
         }
 
         logger.info(
-            f"Policy parsed by Gemini — domain: {result['domain']}, "
+            f"Policy parsed by LLM — domain: {result['domain']}, "
             f"groups: {result['affected_groups']}, "
             f"mechanism: {result['mechanism']}"
         )
@@ -138,7 +138,7 @@ def parse_policy(policy_text):
         return result
 
     except json.JSONDecodeError as e:
-        logger.warning(f"Gemini returned invalid JSON for policy parsing: {e}. Falling back to keywords.")
+        logger.warning(f"LLM returned invalid JSON for policy parsing: {e}. Falling back to keywords.")
         return _keyword_parse(policy_text)
 
     except Exception as e:

@@ -9,7 +9,7 @@ estimates citizen-level reactions, and visualizes system-wide outcomes over time
 - Parses free-text policy input into a structured policy representation.
 - Maps policy intent to citizen attributes likely to be affected.
 - Generates a synthetic population (demographics, occupation, income, traits).
-- Uses Gemini to simulate reactions for a sample of citizens.
+- Uses Groq to simulate reactions for a sample of citizens.
 - Trains a neural predictor to scale reactions across the full population.
 - Runs multi-step simulation and tracks happiness, support, and income trajectories.
 - Displays interactive dashboard analytics and citizen-level views.
@@ -22,7 +22,7 @@ estimates citizen-level reactions, and visualizes system-wide outcomes over time
 - Plotly
 - Pandas / NumPy
 - NetworkX
-- Google Gemini API (`google-generativeai`)
+- Groq API (`groq`)
 
 ## Repository Structure
 
@@ -56,10 +56,12 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```env
-GEMINI_API_KEY=your_actual_api_key
+GROQ_API_KEY=your_actual_api_key
+# Optional: add realistic delay when running without a Groq key
+MOCK_BATCH_DELAY_SECONDS=0.25
 ```
 
-Without a valid key, LLM reaction generation returns a configuration error message.
+Without a valid key, the system runs in mock LLM mode and reports that mode in API diagnostics.
 
 ### 3) Choose your dashboard
 
