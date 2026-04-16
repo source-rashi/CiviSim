@@ -1,8 +1,0 @@
-streamlit
-pandas
-numpy
-torch
-networkx
-python-dotenv
-google-genai
-plotly
