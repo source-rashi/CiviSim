@@ -60,6 +60,13 @@ const Dashboard: React.FC = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+  const policyCharacterCount = policy.trim().length;
+
+  const policyPresets = [
+    'Introduce targeted farming subsidies with digital market access support.',
+    'Expand public healthcare clinics in low-income districts and villages.',
+    'Launch vocational skilling grants for youth in semi-urban regions.',
+  ];
 
   const colors = {
     accentBlue: '#3b82f6',
@@ -208,15 +215,25 @@ const Dashboard: React.FC = () => {
 
   const occupationData = useMemo(
     () => ({
-      labels: ['Farmer', 'Merchant', 'Clerk', 'Laborer'],
+      labels: Object.keys(results?.population_stats.occupations || {
+        Farmer: 25,
+        Merchant: 30,
+        Clerk: 20,
+        Laborer: 25,
+      }),
       datasets: [
         {
-          data: [25, 30, 20, 25],
+          data: Object.values(results?.population_stats.occupations || {
+            Farmer: 25,
+            Merchant: 30,
+            Clerk: 20,
+            Laborer: 25,
+          }),
           backgroundColor: ['#38bdf8', '#3b82f6', '#1d4ed8', '#0ea5e9'],
         },
       ],
     }),
-    []
+    [results?.population_stats.occupations]
   );
 
   const cardSx = {
@@ -279,6 +296,30 @@ const Dashboard: React.FC = () => {
                 C
               </Avatar>
             </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, mb: 2.5 }}>
+              {policyPresets.map((preset) => (
+                <Chip
+                  key={preset}
+                  label={preset}
+                  onClick={() => setPolicy(preset)}
+                  disabled={loading}
+                  sx={{
+                    maxWidth: { xs: '100%', sm: 320 },
+                    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+                    border: '1px solid rgba(56, 189, 248, 0.36)',
+                    color: colors.text,
+                    '& .MuiChip-label': {
+                      whiteSpace: 'normal',
+                      lineHeight: 1.3,
+                      py: 0.4,
+                    },
+                    '&:hover': {
+                      backgroundColor: 'rgba(56, 189, 248, 0.28)',
+                    },
+                  }}
+                />
+              ))}
+            </Box>
             <TextField
               fullWidth
               multiline
@@ -313,6 +354,16 @@ const Dashboard: React.FC = () => {
                 },
               }}
             />
+            <Typography
+              variant="body2"
+              sx={{
+                mb: 3,
+                textAlign: 'right',
+                color: policyCharacterCount < 20 ? '#fbbf24' : colors.textMuted,
+              }}
+            >
+              Policy length: {policyCharacterCount} characters
+            </Typography>
             {uiError && (
               <Alert
                 severity="error"
@@ -437,6 +488,19 @@ const Dashboard: React.FC = () => {
                             fontWeight: 600,
                           }}
                         />
+                        {Object.entries(results.population_stats.occupations)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([occupation, count]) => (
+                            <Chip
+                              key={occupation}
+                              label={`${occupation}: ${count}`}
+                              sx={{
+                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                color: colors.text,
+                                border: '1px solid rgba(59, 130, 246, 0.35)',
+                              }}
+                            />
+                          ))}
                       </Box>
                     </CardContent>
                   </Card>

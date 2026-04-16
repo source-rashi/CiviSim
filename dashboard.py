@@ -76,6 +76,18 @@ app.index_string = '''
                 overflow: hidden;
             }
 
+            .hero-section::after {
+                content: '';
+                position: absolute;
+                right: -140px;
+                top: -110px;
+                width: 320px;
+                height: 320px;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(186, 230, 253, 0.22) 0%, rgba(186, 230, 253, 0) 70%);
+                pointer-events: none;
+            }
+
             .hero-section::before {
                 content: '';
                 position: absolute;
@@ -237,6 +249,13 @@ app.index_string = '''
                 padding: 20px;
                 margin-bottom: 20px;
                 border: 1px solid var(--border-color);
+                transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+            }
+
+            .chart-container:hover {
+                transform: translateY(-2px);
+                border-color: rgba(56, 189, 248, 0.52);
+                box-shadow: 0 14px 34px rgba(2, 8, 23, 0.35);
             }
 
             .loading-spinner {
@@ -302,6 +321,37 @@ app.index_string = '''
             .stat-card:hover {
                 border-color: rgba(56, 189, 248, 0.52);
                 transform: translateY(-2px);
+            }
+
+            @media (max-width: 992px) {
+                .hero-section {
+                    padding: 30px 22px;
+                }
+
+                .hero-title {
+                    font-size: 2.5rem;
+                }
+            }
+
+            @media (max-width: 576px) {
+                .hero-section {
+                    border-radius: 16px;
+                    margin-bottom: 22px;
+                }
+
+                .hero-title {
+                    font-size: 2rem;
+                }
+
+                .hero-subtitle {
+                    font-size: 1rem;
+                }
+
+                .btn-custom {
+                    width: 100%;
+                    padding: 14px 18px;
+                    border-radius: 16px;
+                }
             }
         </style>
     </head>
