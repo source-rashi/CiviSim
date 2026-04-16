@@ -378,7 +378,7 @@ const Dashboard: React.FC = () => {
             transition={{ delay: 0.15, duration: 0.55, ease: 'easeOut' }}
           >
             <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent>
@@ -392,7 +392,7 @@ const Dashboard: React.FC = () => {
                   </Card>
                 </motion.div>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent>
@@ -406,7 +406,7 @@ const Dashboard: React.FC = () => {
                   </Card>
                 </motion.div>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent>
@@ -420,7 +420,7 @@ const Dashboard: React.FC = () => {
                   </Card>
                 </motion.div>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent>
