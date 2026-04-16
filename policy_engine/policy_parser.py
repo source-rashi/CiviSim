@@ -19,6 +19,29 @@ DOMAIN_KEYWORDS = {
                     "vaccine", "clinic", "disease", "mental health", "nutrition"],
 }
 
+ALLOWED_DOMAINS = {"education", "tax", "agriculture", "health", "general"}
+ALLOWED_MECHANISMS = {
+    "subsidy",
+    "tax_change",
+    "regulation",
+    "restriction",
+    "investment",
+    "reform",
+    "general",
+}
+ALLOWED_TIME_EFFECTS = {"immediate", "gradual", "long_term"}
+
+
+def _coerce_choice(value, allowed, default):
+    normalized = str(value).strip().lower()
+    return normalized if normalized in allowed else default
+
+
+def _coerce_string_list(value):
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
 
 def _keyword_parse(policy_text):
     """
@@ -45,7 +68,10 @@ def _keyword_parse(policy_text):
         "affected_groups": [],
         "key_attributes": [],
         "mechanism": "general",
+        "time_effect": "gradual",
         "summary": policy_text,
+        "potential_winners": [],
+        "potential_losers": [],
         "parsed_by": "keyword_fallback"
     }
 
@@ -75,6 +101,8 @@ Return ONLY a valid JSON object with exactly these keys:
 
 Be specific. "OBC engineering students in rural areas" is better than "students".
 If a field is genuinely unknown, use an empty list [] or "general".
+Keep affected_groups, potential_winners, and potential_losers concise and concrete.
+Use lower_snake_case for domain/mechanism/time_effect values exactly as listed.
 
 Policy text:
 {policy_text}
@@ -88,7 +116,7 @@ def parse_policy(policy_text):
     Parse a natural language policy into structured data.
 
     Primary: uses LLM parsing to extract domain, affected groups, mechanism, etc.
-    Fallback: keyword-based detection if Gemini is unavailable.
+    Fallback: keyword-based detection if LLM is unavailable.
 
     Returns a dict with keys:
         domain, affected_groups, key_attributes, mechanism,
@@ -118,14 +146,26 @@ def parse_policy(policy_text):
 
         # Validate and fill missing keys with safe defaults
         result = {
-            "domain":            parsed.get("domain", "general"),
-            "affected_groups":   parsed.get("affected_groups", []),
-            "key_attributes":    parsed.get("key_attributes", []),
-            "mechanism":         parsed.get("mechanism", "general"),
-            "time_effect":       parsed.get("time_effect", "gradual"),
-            "summary":           parsed.get("summary", policy_text),
-            "potential_winners": parsed.get("potential_winners", []),
-            "potential_losers":  parsed.get("potential_losers", []),
+            "domain": _coerce_choice(
+                parsed.get("domain", "general"),
+                ALLOWED_DOMAINS,
+                "general",
+            ),
+            "affected_groups": _coerce_string_list(parsed.get("affected_groups", [])),
+            "key_attributes": _coerce_string_list(parsed.get("key_attributes", [])),
+            "mechanism": _coerce_choice(
+                parsed.get("mechanism", "general"),
+                ALLOWED_MECHANISMS,
+                "general",
+            ),
+            "time_effect": _coerce_choice(
+                parsed.get("time_effect", "gradual"),
+                ALLOWED_TIME_EFFECTS,
+                "gradual",
+            ),
+            "summary": str(parsed.get("summary", policy_text)).strip() or policy_text,
+            "potential_winners": _coerce_string_list(parsed.get("potential_winners", [])),
+            "potential_losers": _coerce_string_list(parsed.get("potential_losers", [])),
             "parsed_by":         "llm"
         }
 

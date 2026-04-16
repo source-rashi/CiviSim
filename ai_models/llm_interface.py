@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import time
 
 from dotenv import load_dotenv
@@ -90,9 +91,7 @@ def _mock_reaction(citizen, policy):
     Realistic mock reaction when Groq is unavailable.
     Varied per citizen so training data is still non-trivial.
     """
-    import random
-
-    rng = random.Random(citizen.cid)
+    rng = random.Random()
 
     income_factor = max(0, (citizen.income - 10000) / 190000)
     leaning = citizen.traits.get("political_leaning", 0.5)
@@ -168,6 +167,46 @@ def _strip_markdown_fence(text):
         lines = cleaned.split("\n")
         cleaned = "\n".join(lines[1:-1]).strip()
     return cleaned
+
+
+RECOMMENDATION_CHOICES = {"implement", "conditional", "do_not_implement"}
+
+
+def _safe_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_recommendation_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    recommendation = str(payload.get("recommendation", "")).strip().lower()
+    if recommendation not in RECOMMENDATION_CHOICES:
+        return None
+
+    confidence_score = _safe_float(payload.get("confidence_score", 0.5), default=0.5)
+    confidence_score = max(0.0, min(1.0, confidence_score))
+
+    reasoning = str(payload.get("reasoning", "")).strip() or "No reasoning provided."
+
+    key_risks_raw = payload.get("key_risks", [])
+    key_risks = key_risks_raw if isinstance(key_risks_raw, list) else []
+    key_risks = [str(item).strip() for item in key_risks if str(item).strip()][:5]
+
+    conditions_raw = payload.get("conditions", [])
+    conditions = conditions_raw if isinstance(conditions_raw, list) else []
+    conditions = [str(item).strip() for item in conditions if str(item).strip()][:5]
+
+    return {
+        "recommendation": recommendation,
+        "confidence_score": confidence_score,
+        "reasoning": reasoning,
+        "key_risks": key_risks,
+        "conditions": conditions,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +303,77 @@ def generate_response(prompt):
         return None
 
 
+def generate_policy_recommendation(policy_text, parsed_policy, final_metrics, population_stats):
+    """
+    Generate a structured policy recommendation after simulation results are available.
+    Returns None when LLM output is unavailable or invalid.
+    """
+    metrics = final_metrics or {}
+    stats = population_stats or {}
+
+    prompt = f"""You are a public policy decision assistant.
+Given the policy details and simulation outcomes, return a strict recommendation.
+
+Return ONLY valid JSON with exactly these keys:
+{{
+  "recommendation": one of ["implement", "conditional", "do_not_implement"],
+  "confidence_score": float from 0.0 to 1.0,
+  "reasoning": string with 2-4 concise sentences,
+  "key_risks": list of short risk statements,
+  "conditions": list of conditions that must be satisfied before rollout
+}}
+
+Decision guidance:
+- Recommend "implement" only when support and welfare indicators are convincingly positive.
+- Recommend "conditional" when outcomes are mixed or uncertain but salvageable.
+- Recommend "do_not_implement" when risks outweigh benefits.
+- Base confidence on evidence quality and metric consistency.
+
+Policy text:
+{policy_text}
+
+Parsed policy:
+- domain: {parsed_policy.get("domain", "general")}
+- mechanism: {parsed_policy.get("mechanism", "general")}
+- affected_groups: {parsed_policy.get("affected_groups", [])}
+- potential_winners: {parsed_policy.get("potential_winners", [])}
+- potential_losers: {parsed_policy.get("potential_losers", [])}
+
+Simulation metrics:
+- final_happiness: {metrics.get("final_happiness", 0.0)}
+- final_support: {metrics.get("final_support", 0.0)}
+- income_start: {metrics.get("income_start", 0.0)}
+- income_end: {metrics.get("income_end", 0.0)}
+- income_change: {metrics.get("income_change", 0.0)}
+- happiness_trend_delta: {metrics.get("happiness_trend_delta", 0.0)}
+- support_trend_delta: {metrics.get("support_trend_delta", 0.0)}
+
+Population stats:
+- total_population: {stats.get("total", 0)}
+- occupation_distribution: {stats.get("occupations", {})}
+- caste_distribution: {stats.get("castes", {})}
+
+Output only the JSON object. No markdown. No explanation outside JSON."""
+
+    raw = generate_response(prompt)
+    if raw is None:
+        return None
+
+    try:
+        parsed = json.loads(_strip_markdown_fence(raw))
+    except json.JSONDecodeError as exc:
+        logger.warning("Policy recommendation JSON parse failed: %s", exc)
+        return None
+
+    normalized = _normalize_recommendation_payload(parsed)
+    if normalized is None:
+        logger.warning("Policy recommendation response failed schema validation.")
+        return None
+
+    normalized["source"] = "llm"
+    return normalized
+
+
 # ---------------------------------------------------------------------------
 # Public APIs
 # ---------------------------------------------------------------------------
@@ -277,7 +387,7 @@ def simulate_population_reactions(population, policy, sample_size=SAMPLE_SIZE):
     - Returns (reactions, sample_population).
     """
     bounded_size = max(1, min(int(sample_size), len(population))) if population else 0
-    sample_population = population[:bounded_size]
+    sample_population = random.sample(population, bounded_size) if population else []
 
     if not sample_population:
         return [], []

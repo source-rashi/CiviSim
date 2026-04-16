@@ -136,25 +136,45 @@ class ReactionModel(nn.Module):
 # Training
 # ---------------------------------------------------------------------------
 
-def train_model(X, y, epochs=200):
+def train_model(X, y, epochs=200, validation_split=0.2, return_metrics=False):
     """
     Train ReactionModel on (X, y).
-    Returns: (model, train_mean, train_std)
+    Returns: (model, train_mean, train_std) by default.
+    If return_metrics=True, returns (model, train_mean, train_std, diagnostics).
     The mean and std MUST be passed to evaluate_model and predict_batch.
     """
     X_norm, mean, std = normalize_features(X)
 
-    X_tensor = torch.tensor(X_norm, dtype=torch.float32)
-    y_tensor = torch.tensor(y, dtype=torch.float32)
+    X_array = np.array(X_norm, dtype=np.float32)
+    y_array = np.array(y, dtype=np.float32)
 
-    model = ReactionModel(input_size=X_norm.shape[1])
+    sample_count = len(X_array)
+    if sample_count == 0:
+        raise ValueError("Cannot train model with empty training data.")
+
+    indices = np.random.permutation(sample_count)
+    requested_val = max(0.0, min(0.5, float(validation_split)))
+    val_count = max(1, int(sample_count * requested_val)) if sample_count >= 10 else 0
+    if val_count >= sample_count:
+        val_count = max(0, sample_count - 1)
+
+    val_idx = indices[:val_count]
+    train_idx = indices[val_count:] if val_count > 0 else indices
+
+    X_train = torch.tensor(X_array[train_idx], dtype=torch.float32)
+    y_train = torch.tensor(y_array[train_idx], dtype=torch.float32)
+
+    X_val = torch.tensor(X_array[val_idx], dtype=torch.float32) if val_count > 0 else None
+    y_val = torch.tensor(y_array[val_idx], dtype=torch.float32) if val_count > 0 else None
+
+    model = ReactionModel(input_size=X_array.shape[1])
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_fn = nn.MSELoss()
 
     for epoch in range(epochs):
         model.train()
-        predictions = model(X_tensor)
-        loss = loss_fn(predictions, y_tensor)
+        predictions = model(X_train)
+        loss = loss_fn(predictions, y_train)
 
         optimizer.zero_grad()
         loss.backward()
@@ -163,7 +183,39 @@ def train_model(X, y, epochs=200):
         if epoch % 40 == 0:
             logger.debug(f"Epoch {epoch:3d} — loss: {loss.item():.6f}")
 
-    logger.info(f"Training complete. Final loss: {loss.item():.6f}")
+    model.eval()
+    with torch.no_grad():
+        train_preds = model(X_train)
+        train_loss = loss_fn(train_preds, y_train).item()
+        train_mae = torch.mean(torch.abs(train_preds - y_train)).item()
+
+        if X_val is not None and y_val is not None:
+            val_preds = model(X_val)
+            val_loss = loss_fn(val_preds, y_val).item()
+            val_mae = torch.mean(torch.abs(val_preds - y_val)).item()
+        else:
+            val_loss = None
+            val_mae = None
+
+    diagnostics = {
+        "samples_total": int(sample_count),
+        "samples_train": int(len(train_idx)),
+        "samples_validation": int(val_count),
+        "train_loss": float(train_loss),
+        "train_mae": float(train_mae),
+        "validation_loss": float(val_loss) if val_loss is not None else None,
+        "validation_mae": float(val_mae) if val_mae is not None else None,
+    }
+
+    logger.info(
+        "Training complete. train_loss=%.6f val_loss=%s",
+        train_loss,
+        f"{val_loss:.6f}" if val_loss is not None else "n/a",
+    )
+
+    if return_metrics:
+        return model, mean, std, diagnostics
+
     return model, mean, std
 
 
