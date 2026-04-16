@@ -43,11 +43,23 @@ ChartJS.register(
   Tooltip
 );
 
+interface PopulationStats {
+  total: number;
+  occupations: Record<string, number>;
+}
+
+interface SimulationResults {
+  happiness_trend: number[];
+  support_trend: number[];
+  population_stats: PopulationStats;
+}
+
 const Dashboard: React.FC = () => {
   const [policy, setPolicy] = useState('');
   const [loading, setLoading] = useState(false);
   const [uiError, setUiError] = useState<string | null>(null);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<SimulationResults | null>(null);
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
   const colors = {
     accentBlue: '#3b82f6',
@@ -68,11 +80,29 @@ const Dashboard: React.FC = () => {
     setUiError(null);
     setLoading(true);
     try {
-      const response = await axios.post('/api/simulate', { policy });
+      const endpoint = `${apiBaseUrl}/api/simulate`;
+      const response = await axios.post<SimulationResults>(
+        endpoint,
+        { policy },
+        { timeout: 25000 }
+      );
       setResults(response.data);
     } catch (error) {
       console.error(error);
-      setUiError('Simulation failed. Please ensure the backend is running and try again.');
+
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          setUiError('Simulation timed out. Try a shorter policy description or retry.');
+        } else {
+          const serverDetail =
+            typeof error.response?.data?.detail === 'string'
+              ? error.response.data.detail
+              : null;
+          setUiError(serverDetail || 'Simulation failed. Please ensure the backend is running and try again.');
+        }
+      } else {
+        setUiError('Unexpected error while running simulation. Please retry.');
+      }
     } finally {
       setLoading(false);
     }
