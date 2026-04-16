@@ -72,12 +72,42 @@ or
 python dashboard.py
 ```
 
+#### Option A2: React Frontend + FastAPI Backend
+
+Run backend API:
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
+
+Run frontend in a second terminal:
+
+```bash
+cd frontend
+npm install
+# Copy .env.example to .env.local, then adjust values if needed
+npm run dev
+```
+
+Open the local URL printed by Vite (usually http://localhost:5173).
+
 #### Option B: Original Streamlit Dashboard
 ```bash
 streamlit run app.py
 ```
 
 Then open the local URL shown in your terminal (Dash: http://localhost:8050, Streamlit: usually http://localhost:8501).
+
+## Frontend-Backend Integration Environment
+
+- `backend`:
+	- `CORS_ORIGINS` (comma-separated, optional)
+	- default allowlist includes localhost dev ports (`5173`, `3000`)
+- `frontend`:
+	- `VITE_API_URL` (Vite dev proxy target)
+	- `VITE_API_BASE_URL` (optional runtime base URL for direct API calls)
 
 ## Dashboard Comparison
 
