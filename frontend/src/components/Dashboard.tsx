@@ -61,6 +61,12 @@ interface PolicyAnalysis {
   potential_winners: string[];
   potential_losers: string[];
   parsed_by: string;
+  recommendation?: 'implement' | 'conditional' | 'do_not_implement' | string;
+  recommendation_confidence?: number;
+  recommendation_reasoning?: string;
+  recommendation_key_risks?: string[];
+  recommendation_conditions?: string[];
+  recommendation_source?: string;
 }
 
 interface PipelineTimings {
@@ -74,12 +80,23 @@ interface PipelineTimings {
 }
 
 interface PipelineInfo {
+  run_id?: string;
   llm_mode: 'groq' | 'mock' | string;
   population_size: number;
   sample_size: number;
   steps: number;
   training_epochs: number;
   batch_size: number;
+  sample_strategy?: string;
+  model_validation?: {
+    samples_total: number;
+    samples_train: number;
+    samples_validation: number;
+    train_loss: number;
+    train_mae: number;
+    validation_loss: number | null;
+    validation_mae: number | null;
+  };
   timings_ms: PipelineTimings;
 }
 
@@ -242,9 +259,9 @@ const Dashboard: React.FC = () => {
     [colors.text]
   );
 
-  const happinessSeries = results?.happiness_trend || [0.5, 0.6, 0.7, 0.75, 0.8];
-  const supportSeries = results?.support_trend || [0.4, 0.45, 0.5, 0.55, 0.6];
-  const incomeSeries = results?.income_trend || [30000, 30500, 31000, 32000, 32500];
+  const happinessSeries = results?.happiness_trend ?? [];
+  const supportSeries = results?.support_trend ?? [];
+  const incomeSeries = results?.income_trend ?? [];
 
   const happinessData = useMemo(
     () => ({
@@ -302,20 +319,10 @@ const Dashboard: React.FC = () => {
 
   const occupationData = useMemo(
     () => ({
-      labels: Object.keys(results?.population_stats.occupations || {
-        Farmer: 25,
-        Worker: 30,
-        Student: 20,
-        Business: 25,
-      }),
+      labels: Object.keys(results?.population_stats.occupations ?? {}),
       datasets: [
         {
-          data: Object.values(results?.population_stats.occupations || {
-            Farmer: 25,
-            Worker: 30,
-            Student: 20,
-            Business: 25,
-          }),
+          data: Object.values(results?.population_stats.occupations ?? {}),
           backgroundColor: ['#38bdf8', '#3b82f6', '#1d4ed8', '#0ea5e9', '#0284c7', '#0369a1'],
         },
       ],
@@ -330,6 +337,33 @@ const Dashboard: React.FC = () => {
         .slice(0, 4),
     [results?.population_stats.castes]
   );
+
+  const recommendation = (results?.policy_analysis.recommendation || 'conditional').toLowerCase();
+  const recommendationLabel =
+    recommendation === 'implement'
+      ? 'Implement'
+      : recommendation === 'do_not_implement'
+      ? 'Do Not Implement'
+      : 'Conditional';
+
+  const recommendationPalette =
+    recommendation === 'implement'
+      ? {
+          border: 'rgba(34, 197, 94, 0.5)',
+          bg: 'rgba(20, 83, 45, 0.28)',
+          chipBg: 'rgba(34, 197, 94, 0.2)',
+        }
+      : recommendation === 'do_not_implement'
+      ? {
+          border: 'rgba(248, 113, 113, 0.52)',
+          bg: 'rgba(127, 29, 29, 0.3)',
+          chipBg: 'rgba(248, 113, 113, 0.22)',
+        }
+      : {
+          border: 'rgba(251, 191, 36, 0.52)',
+          bg: 'rgba(120, 53, 15, 0.28)',
+          chipBg: 'rgba(251, 191, 36, 0.22)',
+        };
 
   const cardSx = {
     background: colors.cardBg,
@@ -602,7 +636,71 @@ const Dashboard: React.FC = () => {
               </Alert>
             )}
 
-            <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+              <Grid size={{ xs: 12 }}>
+                <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      borderColor: recommendationPalette.border,
+                      background: recommendationPalette.bg,
+                    }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.2, mb: 1 }}>
+                        <Typography variant="h5" sx={{ color: colors.text }}>
+                          Policy Recommendation
+                        </Typography>
+                        <Chip
+                          label={recommendationLabel}
+                          sx={{
+                            color: colors.text,
+                            fontWeight: 700,
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                          }}
+                        />
+                        <Chip
+                          label={`Confidence: ${((results.policy_analysis.recommendation_confidence ?? 0.5) * 100).toFixed(0)}%`}
+                          sx={{
+                            color: colors.text,
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                          }}
+                        />
+                        {results.policy_analysis.recommendation_source && (
+                          <Chip
+                            label={`Source: ${results.policy_analysis.recommendation_source}`}
+                            sx={{
+                              color: colors.text,
+                              border: `1px solid ${recommendationPalette.border}`,
+                              backgroundColor: recommendationPalette.chipBg,
+                            }}
+                          />
+                        )}
+                      </Box>
+
+                      <Typography sx={{ color: colors.textMuted, mb: 1.2 }}>
+                        {results.policy_analysis.recommendation_reasoning ||
+                          'No recommendation narrative was returned for this run.'}
+                      </Typography>
+
+                      {(results.policy_analysis.recommendation_key_risks || []).length > 0 && (
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8 }}>
+                          Risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
+                        </Typography>
+                      )}
+
+                      {(results.policy_analysis.recommendation_conditions || []).length > 0 && (
+                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          Conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
@@ -610,8 +708,14 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Happiness Trend
                       </Typography>
-                      <Box sx={{ height: 300 }}>
-                        <Line data={happinessData} options={lineChartOptions} />
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                        {happinessSeries.length > 0 ? (
+                          <Line data={happinessData} options={lineChartOptions} />
+                        ) : (
+                          <Typography sx={{ color: colors.textMuted }}>
+                            No happiness trend data returned for this run.
+                          </Typography>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
@@ -625,8 +729,14 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Policy Support Trend
                       </Typography>
-                      <Box sx={{ height: 300 }}>
-                        <Line data={supportData} options={lineChartOptions} />
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                        {supportSeries.length > 0 ? (
+                          <Line data={supportData} options={lineChartOptions} />
+                        ) : (
+                          <Typography sx={{ color: colors.textMuted }}>
+                            No support trend data returned for this run.
+                          </Typography>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
@@ -640,8 +750,14 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Average Income Trend
                       </Typography>
-                      <Box sx={{ height: 300 }}>
-                        <Line data={incomeData} options={lineChartOptions} />
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                        {incomeSeries.length > 0 ? (
+                          <Line data={incomeData} options={lineChartOptions} />
+                        ) : (
+                          <Typography sx={{ color: colors.textMuted }}>
+                            No income trend data returned for this run.
+                          </Typography>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
@@ -655,8 +771,14 @@ const Dashboard: React.FC = () => {
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Occupation Distribution
                       </Typography>
-                      <Box sx={{ height: 300 }}>
-                        <Pie data={occupationData} options={pieChartOptions} />
+                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 } }}>
+                        {Object.keys(results.population_stats.occupations || {}).length > 0 ? (
+                          <Pie data={occupationData} options={pieChartOptions} />
+                        ) : (
+                          <Typography sx={{ color: colors.textMuted }}>
+                            Occupation distribution is unavailable for this run.
+                          </Typography>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
@@ -697,6 +819,24 @@ const Dashboard: React.FC = () => {
                           ? results.policy_analysis.key_attributes.join(', ')
                           : 'No key attributes extracted in this run.'}
                       </Typography>
+
+                      <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
+                        Potential Winners
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                        {(results.policy_analysis.potential_winners || []).length > 0
+                          ? (results.policy_analysis.potential_winners || []).join(', ')
+                          : 'No clear winner groups identified.'}
+                      </Typography>
+
+                      <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
+                        Potential Losers
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                        {(results.policy_analysis.potential_losers || []).length > 0
+                          ? (results.policy_analysis.potential_losers || []).join(', ')
+                          : 'No explicit loser groups identified.'}
+                      </Typography>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -711,10 +851,14 @@ const Dashboard: React.FC = () => {
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                         <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={{ color: colors.text }} />
+                        {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={{ color: colors.text }} />}
                         <Chip label={`Population: ${results.pipeline.population_size}`} sx={{ color: colors.text }} />
                         <Chip label={`Sample: ${results.pipeline.sample_size}`} sx={{ color: colors.text }} />
                         <Chip label={`Steps: ${results.pipeline.steps}`} sx={{ color: colors.text }} />
                         <Chip label={`Epochs: ${results.pipeline.training_epochs}`} sx={{ color: colors.text }} />
+                        {results.pipeline.sample_strategy && (
+                          <Chip label={`Sampling: ${results.pipeline.sample_strategy}`} sx={{ color: colors.text }} />
+                        )}
                       </Box>
                       <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8 }}>
                         Total runtime: {toDisplayMs(results.pipeline.timings_ms.total_ms)}
@@ -728,6 +872,23 @@ const Dashboard: React.FC = () => {
                       <Typography variant="body2" sx={{ color: colors.textMuted }}>
                         Training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
                       </Typography>
+
+                      {results.pipeline.model_validation && (
+                        <>
+                          <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.4, mb: 0.6 }}>
+                            Model Validation
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                            Samples: total {results.pipeline.model_validation.samples_total}, train {results.pipeline.model_validation.samples_train}, val {results.pipeline.model_validation.samples_validation}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                            Train loss: {results.pipeline.model_validation.train_loss.toFixed(4)} | Train MAE: {results.pipeline.model_validation.train_mae.toFixed(4)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                            Val loss: {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Val MAE: {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
+                          </Typography>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -749,17 +910,23 @@ const Dashboard: React.FC = () => {
                         Top castes in generated population
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {topCasteStats.map(([caste, count]) => (
-                          <Chip
-                            key={caste}
-                            label={`${caste.toUpperCase()}: ${count}`}
-                            sx={{
-                              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                              color: colors.text,
-                              border: '1px solid rgba(59, 130, 246, 0.35)',
-                            }}
-                          />
-                        ))}
+                        {topCasteStats.length > 0 ? (
+                          topCasteStats.map(([caste, count]) => (
+                            <Chip
+                              key={caste}
+                              label={`${caste.toUpperCase()}: ${count}`}
+                              sx={{
+                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                color: colors.text,
+                                border: '1px solid rgba(59, 130, 246, 0.35)',
+                              }}
+                            />
+                          ))
+                        ) : (
+                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                            No caste distribution data available for this run.
+                          </Typography>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
