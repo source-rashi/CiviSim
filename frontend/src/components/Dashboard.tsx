@@ -1,102 +1,253 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Container, Typography, TextField, Button, Box, Grid, Card, CardContent, LinearProgress, Paper, Avatar, Chip } from '@mui/material';
-import { Line, Bar, Pie } from 'react-chartjs-2';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Container,
+  Grid,
+  LinearProgress,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { Line, Pie } from 'react-chartjs-2';
 import axios from 'axios';
 import {
   Chart as ChartJS,
+  ArcElement,
   CategoryScale,
+  Filler,
+  Legend,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
   Tooltip,
-  Legend,
-  ArcElement,
 } from 'chart.js';
+import type { ChartOptions } from 'chart.js';
 
 ChartJS.register(
+  ArcElement,
   CategoryScale,
+  Filler,
+  Legend,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
-  Tooltip,
-  Legend,
-  ArcElement
+  Tooltip
 );
 
 const Dashboard: React.FC = () => {
   const [policy, setPolicy] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<any>(null);
 
+  const colors = {
+    accentBlue: '#3b82f6',
+    accentCyan: '#38bdf8',
+    cardBg: 'rgba(14, 26, 46, 0.72)',
+    cardBorder: 'rgba(110, 164, 248, 0.26)',
+    cardBorderHover: 'rgba(56, 189, 248, 0.6)',
+    text: '#eaf1ff',
+    textMuted: '#a8bddf',
+  };
+
   const handleSimulate = async () => {
+    if (!policy.trim()) {
+      setUiError('Please enter a policy description before running the simulation.');
+      return;
+    }
+
+    setUiError(null);
     setLoading(true);
     try {
       const response = await axios.post('/api/simulate', { policy });
       setResults(response.data);
     } catch (error) {
       console.error(error);
+      setUiError('Simulation failed. Please ensure the backend is running and try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const happinessData = {
-    labels: ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'Step 8', 'Step 9', 'Step 10'],
-    datasets: [
-      {
-        label: 'Average Happiness',
-        data: results?.happiness_trend || [0.5, 0.6, 0.7, 0.8, 0.9, 0.85, 0.9, 0.95, 0.92, 0.88],
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        tension: 0.4,
+  const lineChartOptions: ChartOptions<'line'> = useMemo(
+    () => ({
+      maintainAspectRatio: false,
+      animation: {
+        duration: 650,
       },
-    ],
-  };
+      plugins: {
+        legend: {
+          labels: {
+            color: colors.text,
+            font: {
+              family: 'Manrope',
+              weight: 600,
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(168, 189, 223, 0.12)',
+          },
+          ticks: {
+            color: colors.textMuted,
+          },
+        },
+        y: {
+          grid: {
+            color: 'rgba(168, 189, 223, 0.12)',
+          },
+          ticks: {
+            color: colors.textMuted,
+          },
+        },
+      },
+    }),
+    [colors.text, colors.textMuted]
+  );
 
-  const supportData = {
-    labels: ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'Step 8', 'Step 9', 'Step 10'],
-    datasets: [
-      {
-        label: 'Policy Support',
-        data: results?.support_trend || [0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.82, 0.78],
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.4,
+  const pieChartOptions: ChartOptions<'pie'> = useMemo(
+    () => ({
+      maintainAspectRatio: false,
+      animation: {
+        duration: 650,
       },
-    ],
-  };
+      plugins: {
+        legend: {
+          labels: {
+            color: colors.text,
+            font: {
+              family: 'Manrope',
+              weight: 600,
+            },
+          },
+        },
+      },
+    }),
+    [colors.text]
+  );
 
-  const occupationData = {
-    labels: ['Farmer', 'Merchant', 'Clerk', 'Laborer'],
-    datasets: [
-      {
-        data: [25, 30, 20, 25],
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
-      },
-    ],
+  const stepLabels = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Step 6', 'Step 7', 'Step 8', 'Step 9', 'Step 10'];
+
+  const happinessData = useMemo(
+    () => ({
+      labels: stepLabels,
+      datasets: [
+        {
+          label: 'Average Happiness',
+          data: results?.happiness_trend || [0.5, 0.6, 0.7, 0.8, 0.9, 0.85, 0.9, 0.95, 0.92, 0.88],
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.2)',
+          pointBackgroundColor: '#38bdf8',
+          fill: true,
+          tension: 0.35,
+        },
+      ],
+    }),
+    [results?.happiness_trend]
+  );
+
+  const supportData = useMemo(
+    () => ({
+      labels: stepLabels,
+      datasets: [
+        {
+          label: 'Policy Support',
+          data: results?.support_trend || [0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.82, 0.78],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.18)',
+          pointBackgroundColor: '#3b82f6',
+          fill: true,
+          tension: 0.35,
+        },
+      ],
+    }),
+    [results?.support_trend]
+  );
+
+  const occupationData = useMemo(
+    () => ({
+      labels: ['Farmer', 'Merchant', 'Clerk', 'Laborer'],
+      datasets: [
+        {
+          data: [25, 30, 20, 25],
+          backgroundColor: ['#38bdf8', '#3b82f6', '#1d4ed8', '#0ea5e9'],
+        },
+      ],
+    }),
+    []
+  );
+
+  const cardSx = {
+    background: colors.cardBg,
+    backdropFilter: 'blur(14px)',
+    borderRadius: 4,
+    border: `1px solid ${colors.cardBorder}`,
+    boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
+    transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
+    '&:hover': {
+      borderColor: colors.cardBorderHover,
+      boxShadow: '0 24px 48px rgba(14, 165, 233, 0.22)',
+    },
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', py: 4 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background:
+          'radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.24) 0%, rgba(7, 11, 18, 0) 35%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.22) 0%, rgba(7, 11, 18, 0) 42%), linear-gradient(160deg, #05070d 0%, #0a1220 55%, #060a13 100%)',
+        py: { xs: 3, sm: 4, md: 5 },
+      }}
+    >
       <Container maxWidth="lg">
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 34 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
         >
-          <Paper elevation={10} sx={{ p: 4, mb: 4, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: 3 }}>
-            <Typography variant="h2" component="h1" gutterBottom align="center" sx={{ color: 'white', fontWeight: 'bold' }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2.5, sm: 3, md: 4 },
+              mb: 4,
+              background: 'linear-gradient(135deg, rgba(18, 32, 56, 0.9) 0%, rgba(10, 18, 34, 0.88) 100%)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: 4,
+              border: `1px solid ${colors.cardBorder}`,
+              boxShadow: '0 20px 50px rgba(2, 8, 23, 0.44)',
+            }}
+          >
+            <Typography variant="h2" component="h1" gutterBottom align="center" sx={{ color: colors.text }}>
               CiviSim Dashboard
             </Typography>
-            <Typography variant="h5" align="center" sx={{ color: 'white', mb: 3 }}>
+            <Typography variant="h5" align="center" sx={{ color: colors.textMuted, mb: 3 }}>
               Simulate Policy Impacts on Society
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-              <Avatar sx={{ width: 80, height: 80, bgcolor: 'primary.main' }}>C</Avatar>
+              <Avatar
+                sx={{
+                  width: 80,
+                  height: 80,
+                  fontSize: '1.8rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #38bdf8 100%)',
+                  boxShadow: '0 14px 32px rgba(56, 189, 248, 0.34)',
+                }}
+              >
+                C
+              </Avatar>
             </Box>
             <TextField
               fullWidth
@@ -105,73 +256,157 @@ const Dashboard: React.FC = () => {
               label="Enter Policy Description"
               value={policy}
               onChange={(e) => setPolicy(e.target.value)}
+              disabled={loading}
               variant="outlined"
-              sx={{ mb: 3, '& .MuiOutlinedInput-root': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
-              InputLabelProps={{ style: { color: 'white' } }}
-              inputProps={{ style: { color: 'white' } }}
+              sx={{
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'rgba(12, 24, 42, 0.78)',
+                  borderRadius: 2.5,
+                  color: colors.text,
+                  '& fieldset': {
+                    borderColor: colors.cardBorder,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: colors.accentBlue,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: colors.accentCyan,
+                    boxShadow: '0 0 0 4px rgba(56, 189, 248, 0.16)',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: colors.textMuted,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: colors.accentCyan,
+                },
+              }}
             />
+            {uiError && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2.5,
+                  border: '1px solid rgba(248, 113, 113, 0.4)',
+                  backgroundColor: 'rgba(127, 29, 29, 0.35)',
+                }}
+              >
+                {uiError}
+              </Alert>
+            )}
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
                 <Button
                   variant="contained"
-                  color="secondary"
                   onClick={handleSimulate}
                   disabled={loading}
-                  sx={{ px: 4, py: 2, fontSize: '1.2rem' }}
+                  sx={{
+                    px: 4,
+                    py: 1.7,
+                    minWidth: 210,
+                    fontSize: '1.05rem',
+                    borderRadius: 999,
+                    color: '#f8fcff',
+                    background: 'linear-gradient(120deg, #2563eb 0%, #38bdf8 100%)',
+                    boxShadow: '0 12px 30px rgba(37, 99, 235, 0.38)',
+                    '&:hover': {
+                      background: 'linear-gradient(120deg, #1d4ed8 0%, #0ea5e9 100%)',
+                      boxShadow: '0 16px 36px rgba(14, 165, 233, 0.44)',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'rgba(234, 241, 255, 0.72)',
+                      background: 'rgba(56, 189, 248, 0.3)',
+                    },
+                  }}
                 >
                   {loading ? 'Simulating...' : 'Run Simulation'}
                 </Button>
               </motion.div>
             </Box>
-            {loading && <LinearProgress sx={{ mt: 2, height: 10, borderRadius: 5 }} />}
+            {loading && (
+              <LinearProgress
+                sx={{
+                  mt: 2,
+                  height: 10,
+                  borderRadius: 999,
+                  backgroundColor: 'rgba(56, 189, 248, 0.18)',
+                  '& .MuiLinearProgress-bar': {
+                    background: 'linear-gradient(90deg, #2563eb 0%, #38bdf8 100%)',
+                  },
+                }}
+              />
+            )}
           </Paper>
         </motion.div>
 
         {results && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.8 }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.55, ease: 'easeOut' }}
           >
-            <Grid container spacing={4}>
+            <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
               <Grid item xs={12} md={6}>
-                <motion.div whileHover={{ scale: 1.02 }}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: 3 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
+                  <Card sx={cardSx}>
                     <CardContent>
-                      <Typography variant="h5" sx={{ color: 'white', mb: 2 }}>Happiness Trend</Typography>
-                      <Line data={happinessData} />
+                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
+                        Happiness Trend
+                      </Typography>
+                      <Box sx={{ height: 320 }}>
+                        <Line data={happinessData} options={lineChartOptions} />
+                      </Box>
                     </CardContent>
                   </Card>
                 </motion.div>
               </Grid>
               <Grid item xs={12} md={6}>
-                <motion.div whileHover={{ scale: 1.02 }}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: 3 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
+                  <Card sx={cardSx}>
                     <CardContent>
-                      <Typography variant="h5" sx={{ color: 'white', mb: 2 }}>Policy Support Trend</Typography>
-                      <Line data={supportData} />
+                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
+                        Policy Support Trend
+                      </Typography>
+                      <Box sx={{ height: 320 }}>
+                        <Line data={supportData} options={lineChartOptions} />
+                      </Box>
                     </CardContent>
                   </Card>
                 </motion.div>
               </Grid>
               <Grid item xs={12} md={6}>
-                <motion.div whileHover={{ scale: 1.02 }}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: 3 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
+                  <Card sx={cardSx}>
                     <CardContent>
-                      <Typography variant="h5" sx={{ color: 'white', mb: 2 }}>Occupation Distribution</Typography>
-                      <Pie data={occupationData} />
+                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
+                        Occupation Distribution
+                      </Typography>
+                      <Box sx={{ height: 320 }}>
+                        <Pie data={occupationData} options={pieChartOptions} />
+                      </Box>
                     </CardContent>
                   </Card>
                 </motion.div>
               </Grid>
               <Grid item xs={12} md={6}>
-                <motion.div whileHover={{ scale: 1.02 }}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: 3 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
+                  <Card sx={cardSx}>
                     <CardContent>
-                      <Typography variant="h5" sx={{ color: 'white', mb: 2 }}>Population Stats</Typography>
+                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
+                        Population Stats
+                      </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        <Chip label={`Total: ${results.population_stats.total}`} sx={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }} />
-                        {/* Add more chips */}
+                        <Chip
+                          label={`Total: ${results.population_stats.total}`}
+                          sx={{
+                            backgroundColor: 'rgba(56, 189, 248, 0.22)',
+                            color: colors.text,
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            fontWeight: 600,
+                          }}
+                        />
                       </Box>
                     </CardContent>
                   </Card>
