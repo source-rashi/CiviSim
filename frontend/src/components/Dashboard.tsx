@@ -412,7 +412,7 @@ const Dashboard: React.FC = () => {
               </Avatar>
             </Box>
 
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, mb: 2.5 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch', gap: 1, mb: 2.5 }}>
               {policyPresets.map((preset) => (
                 <Chip
                   key={preset}
@@ -420,14 +420,23 @@ const Dashboard: React.FC = () => {
                   onClick={() => setPolicy(preset)}
                   disabled={loading}
                   sx={{
-                    maxWidth: { xs: '100%', sm: 340 },
+                    flex: { xs: '1 1 100%', sm: '1 1 300px' },
+                    maxWidth: { xs: '100%', sm: 360 },
+                    minHeight: 54,
+                    height: 'auto',
+                    alignItems: 'flex-start',
+                    borderRadius: 999,
                     backgroundColor: 'rgba(56, 189, 248, 0.18)',
                     border: '1px solid rgba(56, 189, 248, 0.36)',
                     color: colors.text,
                     '& .MuiChip-label': {
+                      display: 'block',
                       whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      textAlign: 'left',
                       lineHeight: 1.3,
-                      py: 0.4,
+                      px: 1.8,
+                      py: 1.1,
                     },
                     '&:hover': {
                       backgroundColor: 'rgba(56, 189, 248, 0.28)',
