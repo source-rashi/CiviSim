@@ -221,6 +221,8 @@ def health():
     return {
         "status": "ok",
         "llm_mode": get_runtime_mode(),
+        "audit_storage_backend": meta_agent.storage_backend(),
+        "audit_storage_target": meta_agent.storage_target_safe(),
     }
 
 
