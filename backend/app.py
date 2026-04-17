@@ -1,8 +1,7 @@
 import os
 import sys
 import time
-import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +20,7 @@ from policy_engine.policy_parser import parse_policy
 from population.population_generator import generate_population
 from simulation.simulation_engine import run_simulation
 from utils.metrics import caste_distribution, occupation_distribution
+from backend.meta_agent import meta_agent
 
 app = FastAPI()
 
@@ -83,6 +83,41 @@ class ReactionPreview(BaseModel):
     diary_entry: str
 
 
+class GovernanceIssue(BaseModel):
+    code: str
+    stage: str
+    severity: str
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+
+class AnomalyFlag(BaseModel):
+    code: str
+    stage: str
+    severity: str
+    message: str
+    value: Optional[float] = None
+    threshold: Optional[float] = None
+
+
+class AuditTrailEvent(BaseModel):
+    timestamp: str
+    stage: str
+    status: str
+    severity: str
+    message: str
+    duration_ms: Optional[float] = None
+
+
+class MetaAgentSummary(BaseModel):
+    run_id: str
+    status: str
+    event_count: int
+    governance_issues: List[GovernanceIssue]
+    anomaly_flags: List[AnomalyFlag]
+    audit_trail_preview: List[AuditTrailEvent]
+
+
 class SimulationResponse(BaseModel):
     happiness_trend: List[float]
     support_trend: List[float]
@@ -91,6 +126,7 @@ class SimulationResponse(BaseModel):
     policy_analysis: Dict[str, Any]
     pipeline: Dict[str, Any]
     reaction_preview: List[ReactionPreview]
+    meta_agent: MetaAgentSummary
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -188,26 +224,93 @@ def health():
     }
 
 
+@app.get("/api/audit")
+def list_audits(limit: int = 20):
+    safe_limit = max(1, min(limit, 100))
+    return {"runs": meta_agent.list_runs(limit=safe_limit)}
+
+
+@app.get("/api/audit/{run_id}")
+def get_audit(run_id: str):
+    run = meta_agent.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Audit run not found.")
+    return run
+
+
 @app.post("/api/simulate", response_model=SimulationResponse)
 async def simulate(request: PolicyRequest):
     policy_text = request.policy.strip()
     if not policy_text:
         raise HTTPException(status_code=400, detail="Policy cannot be empty.")
 
+    run_id = meta_agent.start_run(
+        policy_text,
+        {
+            "population_size": request.population_size,
+            "sample_size": request.sample_size,
+            "steps": request.steps,
+            "training_epochs": request.training_epochs,
+        },
+    )
+
     request_start = time.perf_counter()
+    meta_agent.record_event(
+        run_id=run_id,
+        stage="request_received",
+        status="ok",
+        severity="info",
+        message="Simulation request accepted.",
+        details={
+            "population_size": request.population_size,
+            "sample_size": request.sample_size,
+            "steps": request.steps,
+            "training_epochs": request.training_epochs,
+        },
+    )
+    meta_agent.evaluate_policy_text(run_id, policy_text)
 
     try:
         step_start = time.perf_counter()
         parsed_policy = parse_policy(policy_text)
         parse_policy_ms = (time.perf_counter() - step_start) * 1000
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="parse_policy",
+            status="ok",
+            message="Policy parsed successfully.",
+            duration_ms=parse_policy_ms,
+            details={
+                "domain": parsed_policy.get("domain", "general"),
+                "mechanism": parsed_policy.get("mechanism", "general"),
+                "parsed_by": parsed_policy.get("parsed_by", "keyword_fallback"),
+            },
+        )
+        meta_agent.evaluate_parsed_policy(run_id, parsed_policy)
 
         step_start = time.perf_counter()
         attributes = map_policy_to_attributes(parsed_policy)
         map_attributes_ms = (time.perf_counter() - step_start) * 1000
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="map_attributes",
+            status="ok",
+            message="Policy mapped to citizen attributes.",
+            duration_ms=map_attributes_ms,
+            details={"attribute_count": len(attributes)},
+        )
 
         step_start = time.perf_counter()
         population = generate_population(request.population_size, attributes)
         population_generation_ms = (time.perf_counter() - step_start) * 1000
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="population_generation",
+            status="ok",
+            message="Synthetic population generated.",
+            duration_ms=population_generation_ms,
+            details={"population_size": len(population)},
+        )
 
         step_start = time.perf_counter()
         safe_sample_size = min(request.sample_size, len(population))
@@ -217,8 +320,33 @@ async def simulate(request: PolicyRequest):
             sample_size=safe_sample_size,
         )
         llm_sampling_ms = (time.perf_counter() - step_start) * 1000
+        llm_mode = get_runtime_mode()
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="llm_sampling",
+            status="ok",
+            message="Sampled reactions generated.",
+            duration_ms=llm_sampling_ms,
+            details={
+                "sample_size": len(sample_population),
+                "llm_mode": llm_mode,
+            },
+        )
+        meta_agent.evaluate_sampling(
+            run_id=run_id,
+            population_size=len(population),
+            sample_size=len(sample_population),
+            llm_mode=llm_mode,
+        )
 
         if not reactions or not sample_population:
+            meta_agent.add_anomaly_flag(
+                run_id=run_id,
+                code="empty_reactions",
+                stage="llm_sampling",
+                severity="critical",
+                message="Reaction generation returned no usable records.",
+            )
             raise HTTPException(
                 status_code=500,
                 detail="No reaction data generated. Check Groq configuration and retry.",
@@ -233,6 +361,18 @@ async def simulate(request: PolicyRequest):
             return_metrics=True,
         )
         model_training_ms = (time.perf_counter() - step_start) * 1000
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="model_training",
+            status="ok",
+            message="Reaction predictor trained.",
+            duration_ms=model_training_ms,
+            details={
+                "samples_total": int(training_diagnostics.get("samples_total", 0)),
+                "validation_mae": training_diagnostics.get("validation_mae"),
+            },
+        )
+        meta_agent.evaluate_training(run_id, training_diagnostics)
 
         step_start = time.perf_counter()
         policy_encoding = encode_policy(parsed_policy)[0]
@@ -245,6 +385,14 @@ async def simulate(request: PolicyRequest):
             policy_encoding,
         )
         simulation_ms = (time.perf_counter() - step_start) * 1000
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="simulation",
+            status="ok",
+            message="Simulation completed across timeline steps.",
+            duration_ms=simulation_ms,
+            details={"steps": request.steps},
+        )
 
         total_ms = (time.perf_counter() - request_start) * 1000
 
@@ -272,12 +420,28 @@ async def simulate(request: PolicyRequest):
             "happiness_trend_delta": (happiness_trend[-1] - happiness_trend[0]) if len(happiness_trend) >= 2 else 0.0,
             "support_trend_delta": (support_trend[-1] - support_trend[0]) if len(support_trend) >= 2 else 0.0,
         }
+        meta_agent.evaluate_trends(
+            run_id,
+            happiness_trend,
+            support_trend,
+            income_trend,
+        )
 
         recommendation = _resolve_recommendation(
             policy_text,
             parsed_policy,
             final_metrics,
             population_stats_data,
+        )
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="recommendation",
+            status="ok",
+            message="Recommendation generated.",
+            details={
+                "recommendation": recommendation.get("recommendation", "conditional"),
+                "source": recommendation.get("source", "heuristic"),
+            },
         )
 
         preview: List[ReactionPreview] = []
@@ -327,8 +491,8 @@ async def simulate(request: PolicyRequest):
                 "recommendation_source": recommendation.get("source", "heuristic"),
             },
             "pipeline": {
-                "run_id": str(uuid.uuid4()),
-                "llm_mode": get_runtime_mode(),
+                "run_id": run_id,
+                "llm_mode": llm_mode,
                 "population_size": request.population_size,
                 "sample_size": len(sample_population),
                 "steps": request.steps,
@@ -339,13 +503,59 @@ async def simulate(request: PolicyRequest):
                 "timings_ms": pipeline_timings.dict(),
             },
             "reaction_preview": [entry.dict() for entry in preview],
+            "meta_agent": {},
         }
+
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="response",
+            status="ok",
+            severity="info",
+            message="Simulation response assembled.",
+            duration_ms=total_ms,
+        )
+        meta_agent.finalize_run(
+            run_id=run_id,
+            status="completed",
+            summary={
+                "domain": parsed_policy.get("domain", "general"),
+                "recommendation": recommendation.get("recommendation", "conditional"),
+                "final_happiness": round(float(final_metrics.get("final_happiness", 0.0)), 4),
+                "final_support": round(float(final_metrics.get("final_support", 0.0)), 4),
+                "income_change": round(float(final_metrics.get("income_change", 0.0)), 2),
+            },
+        )
+        response["meta_agent"] = meta_agent.build_response_summary(run_id=run_id, preview_events=12)
 
         return response
 
-    except HTTPException:
+    except HTTPException as exc:
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="request_failed",
+            status="error",
+            severity="critical",
+            message=f"Simulation failed with HTTP error: {exc.detail}",
+        )
+        meta_agent.finalize_run(
+            run_id=run_id,
+            status="failed",
+            summary={"error": str(exc.detail)},
+        )
         raise
     except Exception as exc:
+        meta_agent.record_event(
+            run_id=run_id,
+            stage="request_failed",
+            status="error",
+            severity="critical",
+            message=f"Unhandled simulation exception: {exc}",
+        )
+        meta_agent.finalize_run(
+            run_id=run_id,
+            status="failed",
+            summary={"error": str(exc)},
+        )
         raise HTTPException(status_code=500, detail=f"Simulation failed: {exc}") from exc
 
 

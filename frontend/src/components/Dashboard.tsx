@@ -110,6 +110,40 @@ interface ReactionPreview {
   diary_entry: string;
 }
 
+interface GovernanceIssue {
+  code: string;
+  stage: string;
+  severity: string;
+  message: string;
+}
+
+interface AnomalyFlag {
+  code: string;
+  stage: string;
+  severity: string;
+  message: string;
+  value?: number | null;
+  threshold?: number | null;
+}
+
+interface AuditTrailEvent {
+  timestamp: string;
+  stage: string;
+  status: string;
+  severity: string;
+  message: string;
+  duration_ms?: number | null;
+}
+
+interface MetaAgentSummary {
+  run_id: string;
+  status: string;
+  event_count: number;
+  governance_issues: GovernanceIssue[];
+  anomaly_flags: AnomalyFlag[];
+  audit_trail_preview: AuditTrailEvent[];
+}
+
 interface SimulationResults {
   happiness_trend: number[];
   support_trend: number[];
@@ -118,6 +152,7 @@ interface SimulationResults {
   policy_analysis: PolicyAnalysis;
   pipeline: PipelineInfo;
   reaction_preview: ReactionPreview[];
+  meta_agent?: MetaAgentSummary;
 }
 
 const buildStepLabels = (seriesLength: number) =>
@@ -337,6 +372,30 @@ const Dashboard: React.FC = () => {
         .slice(0, 4),
     [results?.population_stats.castes]
   );
+
+  const metaAgentSummary = results?.meta_agent;
+  const governanceIssues = metaAgentSummary?.governance_issues ?? [];
+  const anomalyFlags = metaAgentSummary?.anomaly_flags ?? [];
+  const auditTrailPreview = metaAgentSummary?.audit_trail_preview ?? [];
+
+  const severityStyles = (severity: string) => {
+    if (severity === 'critical') {
+      return {
+        border: '1px solid rgba(248, 113, 113, 0.5)',
+        bg: 'rgba(127, 29, 29, 0.28)',
+      };
+    }
+    if (severity === 'warning') {
+      return {
+        border: '1px solid rgba(251, 191, 36, 0.5)',
+        bg: 'rgba(120, 53, 15, 0.28)',
+      };
+    }
+    return {
+      border: '1px solid rgba(56, 189, 248, 0.4)',
+      bg: 'rgba(14, 116, 144, 0.2)',
+    };
+  };
 
   const recommendation = (results?.policy_analysis.recommendation || 'conditional').toLowerCase();
   const recommendationLabel =
@@ -782,6 +841,121 @@ const Dashboard: React.FC = () => {
                   </Card>
                 </motion.div>
               </Grid>
+
+              {metaAgentSummary && (
+                <Grid size={{ xs: 12 }}>
+                  <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
+                    <Card sx={cardSx}>
+                      <CardContent>
+                        <Typography variant="h5" sx={{ color: colors.text, mb: 1.2 }}>
+                          Governance And Security Meta-Agent
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.6, ...wrappedTextSx }}>
+                          This monitor tracks pipeline decisions, flags anomalies, and stores an audit snapshot for each simulation run.
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                          <Chip label={`Status: ${metaAgentSummary.status}`} sx={wrappedChipSx} />
+                          <Chip label={`Events: ${metaAgentSummary.event_count}`} sx={wrappedChipSx} />
+                          <Chip label={`Governance issues: ${governanceIssues.length}`} sx={wrappedChipSx} />
+                          <Chip label={`Anomalies: ${anomalyFlags.length}`} sx={wrappedChipSx} />
+                        </Box>
+
+                        <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.8 }}>
+                          Governance Findings
+                        </Typography>
+                        {governanceIssues.length > 0 ? (
+                          governanceIssues.slice(0, 4).map((issue, index) => {
+                            const style = severityStyles(issue.severity);
+                            return (
+                              <Box
+                                key={`${issue.code}-${index}`}
+                                sx={{
+                                  mb: 1,
+                                  p: 1.2,
+                                  borderRadius: 2,
+                                  border: style.border,
+                                  backgroundColor: style.bg,
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                  [{issue.severity.toUpperCase()}] {issue.stage}: {issue.message}
+                                </Typography>
+                              </Box>
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
+                            No governance issues detected for this run.
+                          </Typography>
+                        )}
+
+                        <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
+                          Anomaly Flags
+                        </Typography>
+                        {anomalyFlags.length > 0 ? (
+                          anomalyFlags.slice(0, 4).map((flag, index) => {
+                            const style = severityStyles(flag.severity);
+                            return (
+                              <Box
+                                key={`${flag.code}-${index}`}
+                                sx={{
+                                  mb: 1,
+                                  p: 1.2,
+                                  borderRadius: 2,
+                                  border: style.border,
+                                  backgroundColor: style.bg,
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                  [{flag.severity.toUpperCase()}] {flag.stage}: {flag.message}
+                                </Typography>
+                              </Box>
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
+                            No anomalies detected for this run.
+                          </Typography>
+                        )}
+
+                        <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
+                          Audit Trail Preview
+                        </Typography>
+                        {auditTrailPreview.length > 0 ? (
+                          auditTrailPreview.slice(-6).map((event, index) => {
+                            const style = severityStyles(event.severity);
+                            return (
+                              <Box
+                                key={`${event.stage}-${index}-${event.timestamp}`}
+                                sx={{
+                                  mb: 1,
+                                  p: 1.1,
+                                  borderRadius: 2,
+                                  border: style.border,
+                                  backgroundColor: style.bg,
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                  {event.stage} - {event.status}
+                                  {event.duration_ms != null ? ` (${toDisplayMs(event.duration_ms)})` : ''}
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
+                                  {event.message}
+                                </Typography>
+                              </Box>
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                            Audit trail is empty for this run.
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </Grid>
+              )}
 
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
