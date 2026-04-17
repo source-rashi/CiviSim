@@ -138,3 +138,7 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Meta-agent runtime artifacts
+backend/data/meta_agent_audit.db
+backend/data/audit_export.json
