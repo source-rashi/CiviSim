@@ -166,10 +166,10 @@ const Dashboard: React.FC = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
 
-  const [populationSize, setPopulationSize] = useState(3000);
-  const [sampleSize, setSampleSize] = useState(120);
+  const [populationSize, setPopulationSize] = useState(2000);
+  const [sampleSize, setSampleSize] = useState(100);
   const [simulationSteps, setSimulationSteps] = useState(12);
-  const [trainingEpochs, setTrainingEpochs] = useState(80);
+  const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const policyCharacterCount = policy.trim().length;
@@ -210,7 +210,7 @@ const Dashboard: React.FC = () => {
           steps: simulationSteps,
           training_epochs: trainingEpochs,
         },
-        { timeout: 120000 }
+        { timeout: 180000 }
       );
       setResults(response.data);
     } catch (error) {
@@ -218,7 +218,7 @@ const Dashboard: React.FC = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
-          setUiError('Simulation timed out. Try reducing population/sample size or training epochs.');
+          setUiError('Simulation took too long (exceeded 3 minute timeout). Try: reducing population size, LLM sample size, simulation steps, or training epochs.');
         } else {
           const serverDetail =
             typeof error.response?.data?.detail === 'string'
