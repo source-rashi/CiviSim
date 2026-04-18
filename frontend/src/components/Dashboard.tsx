@@ -166,8 +166,8 @@ const Dashboard: React.FC = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
 
-  const [populationSize, setPopulationSize] = useState(3000);
-  const [sampleSize, setSampleSize] = useState(120);
+  const [populationSize, setPopulationSize] = useState(2000);
+  const [sampleSize, setSampleSize] = useState(100);
   const [simulationSteps, setSimulationSteps] = useState(12);
   const [trainingEpochs, setTrainingEpochs] = useState(40);
 
