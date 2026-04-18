@@ -210,7 +210,7 @@ const Dashboard: React.FC = () => {
           steps: simulationSteps,
           training_epochs: trainingEpochs,
         },
-        { timeout: 120000 }
+        { timeout: 180000 }
       );
       setResults(response.data);
     } catch (error) {
@@ -218,7 +218,7 @@ const Dashboard: React.FC = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
-          setUiError('Simulation timed out. Try reducing population/sample size or training epochs.');
+          setUiError('Simulation took too long (exceeded 3 minute timeout). Try: reducing population size, LLM sample size, simulation steps, or training epochs.');
         } else {
           const serverDetail =
             typeof error.response?.data?.detail === 'string'
