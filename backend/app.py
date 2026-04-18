@@ -51,10 +51,11 @@ app.add_middleware(
 
 class PolicyRequest(BaseModel):
     policy: str = Field(..., min_length=3, max_length=3000)
-    population_size: int = Field(default=3000, ge=200, le=20000)
-    sample_size: int = Field(default=120, ge=20, le=600)
+    population_size: int = Field(default=2000, ge=200, le=20000)
+    sample_size: int = Field(default=100, ge=20, le=600)
     steps: int = Field(default=12, ge=3, le=80)
-    training_epochs: int = Field(default=80, ge=20, le=500)
+    training_epochs: int = Field(default=40, ge=20, le=500)
+    batch_size: int = Field(default=32, ge=4, le=256)
 
     random_seed: Optional[int] = Field(default=None, ge=0, le=2_147_483_647)
 
