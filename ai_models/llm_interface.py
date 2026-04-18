@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = int(os.getenv("GROQ_BATCH_SIZE", "10"))
 SAMPLE_SIZE = int(os.getenv("GROQ_SAMPLE_SIZE", "200"))
 MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+SAMPLING_TEMPERATURE = float(os.getenv("GROQ_SAMPLING_TEMPERATURE", "0.35"))
+CONSISTENCY_PROBE_SIZE = int(os.getenv("LLM_CONSISTENCY_PROBE_SIZE", "8"))
 MOCK_BATCH_DELAY_SECONDS = float(os.getenv("MOCK_BATCH_DELAY_SECONDS", "0.25"))
 
 _groq_client = None
@@ -232,7 +234,7 @@ def _call_groq_batch(citizens, policy):
         response = client.chat.completions.create(
             model=MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.8,
+            temperature=SAMPLING_TEMPERATURE,
             max_tokens=4000,
         )
 
@@ -378,42 +380,112 @@ Output only the JSON object. No markdown. No explanation outside JSON."""
 # Public APIs
 # ---------------------------------------------------------------------------
 
-def simulate_population_reactions(population, policy, sample_size=SAMPLE_SIZE):
+def _reaction_consistency_mae(reference_reactions, repeated_reactions):
+    """
+    Estimate label consistency between two reaction sets for the same citizens.
+    Income difference is normalized to prevent rupee scale from dominating.
+    """
+    if not reference_reactions or not repeated_reactions:
+        return None
+    if len(reference_reactions) != len(repeated_reactions):
+        return None
+
+    errors = []
+    for expected, repeated in zip(reference_reactions, repeated_reactions):
+        try:
+            expected_h = float(expected.get("happiness_change", 0.0))
+            repeated_h = float(repeated.get("happiness_change", 0.0))
+            expected_s = float(expected.get("support_change", 0.0))
+            repeated_s = float(repeated.get("support_change", 0.0))
+            expected_i = float(expected.get("income_change", 0.0))
+            repeated_i = float(repeated.get("income_change", 0.0))
+
+            income_scale = max(abs(expected_i), abs(repeated_i), 1.0)
+
+            errors.append(abs(expected_h - repeated_h))
+            errors.append(abs(expected_s - repeated_s))
+            errors.append(abs(expected_i - repeated_i) / income_scale)
+        except Exception:
+            continue
+
+    if not errors:
+        return None
+
+    return float(sum(errors) / len(errors))
+
+def simulate_population_reactions(
+    population,
+    policy,
+    sample_size=SAMPLE_SIZE,
+    batch_size=None,
+    seed=None,
+    consistency_probe_size=CONSISTENCY_PROBE_SIZE,
+):
     """
     Simulate reactions for a sampled subset of the population.
 
     - Takes up to sample_size citizens.
-    - Sends them to Groq in BATCH_SIZE chunks.
-    - Returns (reactions, sample_population).
+    - Sends them to Groq in configured batch chunks.
+    - Returns (reactions, sample_population, sampling_diagnostics).
     """
-    bounded_size = max(1, min(int(sample_size), len(population))) if population else 0
-    sample_population = random.sample(population, bounded_size) if population else []
+    requested_sample_size = int(sample_size)
+    effective_batch_size = max(1, int(batch_size) if batch_size is not None else BATCH_SIZE)
+    bounded_size = max(1, min(requested_sample_size, len(population))) if population else 0
+
+    rng = random.Random(int(seed)) if seed is not None else random
+    sample_population = rng.sample(population, bounded_size) if population else []
 
     if not sample_population:
-        return [], []
+        return [], [], {
+            "requested_sample_size": requested_sample_size,
+            "effective_sample_size": 0,
+            "sample_size_capped": requested_sample_size > 0,
+            "effective_batch_size": effective_batch_size,
+            "consistency_mae": None,
+            "consistency_sample_size": 0,
+        }
 
     total = len(sample_population)
-    total_batches = (total + BATCH_SIZE - 1) // BATCH_SIZE
+    total_batches = (total + effective_batch_size - 1) // effective_batch_size
     reactions = []
 
     logger.info(
         "Simulating %s citizens in %s batches (batch_size=%s, mode=%s).",
         total,
         total_batches,
-        BATCH_SIZE,
+        effective_batch_size,
         get_runtime_mode(),
     )
 
-    for batch_start in range(0, total, BATCH_SIZE):
-        batch = sample_population[batch_start : batch_start + BATCH_SIZE]
-        batch_num = batch_start // BATCH_SIZE + 1
+    for batch_start in range(0, total, effective_batch_size):
+        batch = sample_population[batch_start : batch_start + effective_batch_size]
+        batch_num = batch_start // effective_batch_size + 1
         logger.info("Batch %s/%s with %s citizens", batch_num, total_batches, len(batch))
 
         batch_reactions = _call_groq_batch(batch, policy)
         reactions.extend(batch_reactions)
 
+    consistency_mae = None
+    consistency_sample_size = 0
+
+    if get_runtime_mode() == "groq" and total >= 20 and consistency_probe_size > 0:
+        consistency_sample_size = min(int(consistency_probe_size), total)
+        probe_indices = rng.sample(list(range(total)), consistency_sample_size)
+
+        probe_citizens = [sample_population[idx] for idx in probe_indices]
+        probe_expected = [reactions[idx] for idx in probe_indices]
+        probe_repeated = _call_groq_batch(probe_citizens, policy)
+        consistency_mae = _reaction_consistency_mae(probe_expected, probe_repeated)
+
     logger.info("Reaction simulation complete. Collected %s reactions.", len(reactions))
-    return reactions, sample_population
+    return reactions, sample_population, {
+        "requested_sample_size": requested_sample_size,
+        "effective_sample_size": total,
+        "sample_size_capped": requested_sample_size > total,
+        "effective_batch_size": effective_batch_size,
+        "consistency_mae": consistency_mae,
+        "consistency_sample_size": consistency_sample_size,
+    }
 
 
 def simulate_citizen_reaction(citizen, policy):

@@ -1,4 +1,6 @@
 import os
+import hashlib
+import random
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -54,6 +56,7 @@ class PolicyRequest(BaseModel):
     steps: int = Field(default=12, ge=3, le=80)
     training_epochs: int = Field(default=80, ge=20, le=500)
 
+    random_seed: Optional[int] = Field(default=None, ge=0, le=2_147_483_647)
 
 class PipelineTimings(BaseModel):
     parse_policy_ms: float
@@ -131,6 +134,44 @@ class SimulationResponse(BaseModel):
 
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
+
+
+def _derive_seed(policy_text: str, request: PolicyRequest) -> int:
+    if request.random_seed is not None:
+        return int(request.random_seed)
+
+    seed_basis = "|".join(
+        [
+            policy_text,
+            str(request.population_size),
+            str(request.sample_size),
+            str(request.steps),
+            str(request.training_epochs),
+            str(request.batch_size),
+        ]
+    )
+    digest = hashlib.sha256(seed_basis.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16)
+
+
+def _seed_everything(seed: int) -> None:
+    random.seed(seed)
+
+    try:
+        import numpy as np
+
+        np.random.seed(seed % (2**32 - 1))
+    except Exception:
+        pass
+
+    try:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except Exception:
+        pass
 
 
 def _build_fallback_recommendation(final_metrics: Dict[str, float]) -> Dict[str, Any]:
@@ -246,6 +287,9 @@ async def simulate(request: PolicyRequest):
     if not policy_text:
         raise HTTPException(status_code=400, detail="Policy cannot be empty.")
 
+    effective_seed = _derive_seed(policy_text, request)
+    _seed_everything(effective_seed)
+
     run_id = meta_agent.start_run(
         policy_text,
         {
@@ -253,6 +297,8 @@ async def simulate(request: PolicyRequest):
             "sample_size": request.sample_size,
             "steps": request.steps,
             "training_epochs": request.training_epochs,
+            "batch_size": request.batch_size,
+            "random_seed": effective_seed,
         },
     )
 
@@ -268,6 +314,8 @@ async def simulate(request: PolicyRequest):
             "sample_size": request.sample_size,
             "steps": request.steps,
             "training_epochs": request.training_epochs,
+            "batch_size": request.batch_size,
+            "random_seed": effective_seed,
         },
     )
     meta_agent.evaluate_policy_text(run_id, policy_text)
@@ -315,11 +363,12 @@ async def simulate(request: PolicyRequest):
         )
 
         step_start = time.perf_counter()
-        safe_sample_size = min(request.sample_size, len(population))
-        reactions, sample_population = simulate_population_reactions(
+        reactions, sample_population, sampling_diagnostics = simulate_population_reactions(
             population,
             policy_text,
-            sample_size=safe_sample_size,
+            sample_size=request.sample_size,
+            batch_size=request.batch_size,
+            seed=effective_seed,
         )
         llm_sampling_ms = (time.perf_counter() - step_start) * 1000
         llm_mode = get_runtime_mode()
@@ -330,7 +379,11 @@ async def simulate(request: PolicyRequest):
             message="Sampled reactions generated.",
             duration_ms=llm_sampling_ms,
             details={
+                "requested_sample_size": sampling_diagnostics.get("requested_sample_size"),
                 "sample_size": len(sample_population),
+                "sample_size_capped": sampling_diagnostics.get("sample_size_capped", False),
+                "batch_size": sampling_diagnostics.get("effective_batch_size", request.batch_size),
+                "consistency_mae": sampling_diagnostics.get("consistency_mae"),
                 "llm_mode": llm_mode,
             },
         )
@@ -340,6 +393,32 @@ async def simulate(request: PolicyRequest):
             sample_size=len(sample_population),
             llm_mode=llm_mode,
         )
+
+        if sampling_diagnostics.get("sample_size_capped"):
+            meta_agent.add_governance_issue(
+                run_id=run_id,
+                code="sample_size_capped",
+                stage="llm_sampling",
+                severity="warning",
+                message="Requested sample size exceeded available population and was capped.",
+                details={
+                    "requested_sample_size": sampling_diagnostics.get("requested_sample_size"),
+                    "effective_sample_size": sampling_diagnostics.get("effective_sample_size"),
+                },
+            )
+
+        consistency_mae = sampling_diagnostics.get("consistency_mae")
+        consistency_threshold = float(os.getenv("META_AGENT_MAX_LABEL_CONSISTENCY_MAE", "0.35"))
+        if consistency_mae is not None and float(consistency_mae) > consistency_threshold:
+            meta_agent.add_anomaly_flag(
+                run_id=run_id,
+                code="low_label_consistency",
+                stage="llm_sampling",
+                severity="warning",
+                message="LLM reaction consistency is low; predictions may be unstable.",
+                value=round(float(consistency_mae), 6),
+                threshold=consistency_threshold,
+            )
 
         if not reactions or not sample_population:
             meta_agent.add_anomaly_flag(
@@ -361,6 +440,8 @@ async def simulate(request: PolicyRequest):
             y,
             epochs=request.training_epochs,
             return_metrics=True,
+            batch_size=request.batch_size,
+            seed=effective_seed,
         )
         model_training_ms = (time.perf_counter() - step_start) * 1000
         meta_agent.record_event(
@@ -372,12 +453,14 @@ async def simulate(request: PolicyRequest):
             details={
                 "samples_total": int(training_diagnostics.get("samples_total", 0)),
                 "validation_mae": training_diagnostics.get("validation_mae"),
+                "epochs_completed": training_diagnostics.get("epochs_completed", request.training_epochs),
+                "early_stopped": training_diagnostics.get("early_stopped", False),
             },
         )
         meta_agent.evaluate_training(run_id, training_diagnostics)
 
         step_start = time.perf_counter()
-        policy_encoding = encode_policy(parsed_policy)[0]
+        policy_encoding = encode_policy(parsed_policy)
         metrics = run_simulation(
             population,
             model,
@@ -495,16 +578,23 @@ async def simulate(request: PolicyRequest):
             "pipeline": {
                 "run_id": run_id,
                 "llm_mode": llm_mode,
-                "population_size": request.population_size,
+                "population_size": len(population),
+                "requested_population_size": request.population_size,
                 "sample_size": len(sample_population),
+                "requested_sample_size": request.sample_size,
+                "sample_size_capped": bool(sampling_diagnostics.get("sample_size_capped", False)),
                 "steps": request.steps,
-                "training_epochs": request.training_epochs,
-                "batch_size": int(os.getenv("GROQ_BATCH_SIZE", "10")),
+                "training_epochs": int(training_diagnostics.get("epochs_completed", request.training_epochs)),
+                "requested_training_epochs": request.training_epochs,
+                "batch_size": int(sampling_diagnostics.get("effective_batch_size", request.batch_size)),
+                "requested_batch_size": request.batch_size,
+                "random_seed": effective_seed,
                 "sample_strategy": "random_without_replacement",
+                "sampling_diagnostics": sampling_diagnostics,
                 "model_validation": training_diagnostics,
-                "timings_ms": pipeline_timings.dict(),
+                "timings_ms": pipeline_timings.model_dump(),
             },
-            "reaction_preview": [entry.dict() for entry in preview],
+            "reaction_preview": [entry.model_dump() for entry in preview],
             "meta_agent": {},
         }
 

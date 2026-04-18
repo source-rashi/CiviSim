@@ -91,17 +91,34 @@ def predict_batch(model, population, mean, std, policy_encoding):
 
 def _citizen_to_features(citizen, policy_encoding):
     """
-    Convert a citizen object into a 6-element feature vector.
+    Convert a citizen object into a 9-element feature vector.
     Must match the feature order used in create_training_data().
     """
+    policy_vector = _normalize_policy_vector(policy_encoding)
+
     return [
         citizen.age,
         citizen.income,
         citizen.traits.get("risk_tolerance", 0.5),
         citizen.traits.get("openness", 0.5),
         citizen.traits.get("political_leaning", 0.5),
-        policy_encoding,
+        *policy_vector,
     ]
+
+
+def _normalize_policy_vector(policy_encoding):
+    """Ensure predictor always receives a 4-value policy feature vector."""
+    if isinstance(policy_encoding, (list, tuple, np.ndarray)):
+        policy_vector = [float(value) for value in policy_encoding]
+    elif policy_encoding is None:
+        policy_vector = []
+    else:
+        policy_vector = [float(policy_encoding)]
+
+    if len(policy_vector) < 4:
+        policy_vector.extend([0.0] * (4 - len(policy_vector)))
+
+    return policy_vector[:4]
 
 
 def _scale_output(raw_output):
