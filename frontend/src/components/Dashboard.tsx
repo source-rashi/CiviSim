@@ -83,11 +83,25 @@ interface PipelineInfo {
   run_id?: string;
   llm_mode: 'groq' | 'mock' | string;
   population_size: number;
+  requested_population_size?: number;
   sample_size: number;
+  requested_sample_size?: number;
+  sample_size_capped?: boolean;
   steps: number;
   training_epochs: number;
+  requested_training_epochs?: number;
   batch_size: number;
+  requested_batch_size?: number;
+  random_seed?: number;
   sample_strategy?: string;
+  sampling_diagnostics?: {
+    requested_sample_size: number;
+    effective_sample_size: number;
+    sample_size_capped: boolean;
+    effective_batch_size: number;
+    consistency_mae: number | null;
+    consistency_sample_size: number;
+  };
   model_validation?: {
     samples_total: number;
     samples_train: number;
@@ -96,6 +110,14 @@ interface PipelineInfo {
     train_mae: number;
     validation_loss: number | null;
     validation_mae: number | null;
+    epochs_requested?: number;
+    epochs_completed?: number;
+    early_stopped?: boolean;
+    best_epoch?: number;
+    best_validation_loss?: number | null;
+    effective_batch_size?: number;
+    random_seed?: number | null;
+    train_validation_mae_gap?: number | null;
   };
   timings_ms: PipelineTimings;
 }
@@ -160,16 +182,31 @@ const buildStepLabels = (seriesLength: number) =>
 
 const toDisplayMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`);
 
+const tuningLimits = {
+  populationSize: { min: 200, max: 20000, defaultValue: 2000 },
+  sampleSize: { min: 20, max: 600, defaultValue: 100 },
+  simulationSteps: { min: 3, max: 80, defaultValue: 12 },
+  trainingEpochs: { min: 20, max: 500, defaultValue: 40 },
+};
+
+type TuningErrors = {
+  populationSize?: string;
+  sampleSize?: string;
+  simulationSteps?: string;
+  trainingEpochs?: string;
+};
+
 const Dashboard: React.FC = () => {
   const [policy, setPolicy] = useState('');
   const [loading, setLoading] = useState(false);
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
+  const [tuningErrors, setTuningErrors] = useState<TuningErrors>({});
 
-  const [populationSize, setPopulationSize] = useState(3000);
-  const [sampleSize, setSampleSize] = useState(120);
+  const [populationSize, setPopulationSize] = useState(2000);
+  const [sampleSize, setSampleSize] = useState(100);
   const [simulationSteps, setSimulationSteps] = useState(12);
-  const [trainingEpochs, setTrainingEpochs] = useState(80);
+  const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const policyCharacterCount = policy.trim().length;
@@ -190,9 +227,55 @@ const Dashboard: React.FC = () => {
     textMuted: '#a8bddf',
   };
 
+  const validateRange = (value: number, min: number, max: number, label: string) => {
+    if (!Number.isFinite(value)) {
+      return `${label} must be a valid number.`;
+    }
+    if (value < min || value > max) {
+      return `${label} must be between ${min} and ${max}.`;
+    }
+    return undefined;
+  };
+
+  const validateTuningInputs = (): boolean => {
+    const nextErrors: TuningErrors = {
+      populationSize: validateRange(
+        populationSize,
+        tuningLimits.populationSize.min,
+        tuningLimits.populationSize.max,
+        'Population'
+      ),
+      sampleSize: validateRange(sampleSize, tuningLimits.sampleSize.min, tuningLimits.sampleSize.max, 'LLM Sample'),
+      simulationSteps: validateRange(
+        simulationSteps,
+        tuningLimits.simulationSteps.min,
+        tuningLimits.simulationSteps.max,
+        'Simulation Steps'
+      ),
+      trainingEpochs: validateRange(
+        trainingEpochs,
+        tuningLimits.trainingEpochs.min,
+        tuningLimits.trainingEpochs.max,
+        'Training Epochs'
+      ),
+    };
+
+    if (!nextErrors.sampleSize && sampleSize > populationSize) {
+      nextErrors.sampleSize = 'LLM Sample cannot be greater than Population.';
+    }
+
+    setTuningErrors(nextErrors);
+    return Object.values(nextErrors).every((value) => !value);
+  };
+
   const handleSimulate = async () => {
     if (!policy.trim()) {
       setUiError('Please enter a policy description before running the simulation.');
+      return;
+    }
+
+    if (!validateTuningInputs()) {
+      setUiError('Please fix the simulation tuning fields before running.');
       return;
     }
 
@@ -210,7 +293,7 @@ const Dashboard: React.FC = () => {
           steps: simulationSteps,
           training_epochs: trainingEpochs,
         },
-        { timeout: 120000 }
+        { timeout: 180000 }
       );
       setResults(response.data);
     } catch (error) {
@@ -218,7 +301,7 @@ const Dashboard: React.FC = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
-          setUiError('Simulation timed out. Try reducing population/sample size or training epochs.');
+          setUiError('Simulation exceeded the 3 minute timeout. Try lowering population size, sample size, steps, or epochs.');
         } else {
           const serverDetail =
             typeof error.response?.data?.detail === 'string'
@@ -432,12 +515,28 @@ const Dashboard: React.FC = () => {
     overflow: 'hidden',
     minWidth: 0,
     height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
     boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
     transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
     '&:hover': {
       borderColor: colors.cardBorderHover,
       boxShadow: '0 24px 48px rgba(14, 165, 233, 0.22)',
     },
+  };
+
+  const cardContentSx = {
+    p: { xs: 1.8, sm: 2.2, md: 2.6 },
+    '&:last-child': {
+      pb: { xs: 1.8, sm: 2.2, md: 2.6 },
+    },
+  };
+
+  const chartBoxSx = {
+    minHeight: { xs: 260, sm: 300, md: 340 },
+    maxHeight: { xs: 340, sm: 380, md: 420 },
+    overflow: 'auto',
+    pr: 0.5,
   };
 
   const tuningFieldSx = {
@@ -628,8 +727,17 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Population"
                   value={populationSize}
-                  onChange={(event) => setPopulationSize(Math.max(200, Number(event.target.value) || 3000))}
+                  onChange={(event) => {
+                    setPopulationSize(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, populationSize: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.populationSize)}
+                  helperText={
+                    tuningErrors.populationSize ||
+                    `Range ${tuningLimits.populationSize.min}-${tuningLimits.populationSize.max}.`
+                  }
+                  inputProps={{ min: tuningLimits.populationSize.min, max: tuningLimits.populationSize.max }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -639,8 +747,17 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="LLM Sample"
                   value={sampleSize}
-                  onChange={(event) => setSampleSize(Math.max(20, Number(event.target.value) || 120))}
+                  onChange={(event) => {
+                    setSampleSize(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, sampleSize: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.sampleSize)}
+                  helperText={
+                    tuningErrors.sampleSize ||
+                    `Range ${tuningLimits.sampleSize.min}-${tuningLimits.sampleSize.max}.`
+                  }
+                  inputProps={{ min: tuningLimits.sampleSize.min, max: tuningLimits.sampleSize.max }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -650,8 +767,17 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Simulation Steps"
                   value={simulationSteps}
-                  onChange={(event) => setSimulationSteps(Math.max(3, Number(event.target.value) || 12))}
+                  onChange={(event) => {
+                    setSimulationSteps(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, simulationSteps: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.simulationSteps)}
+                  helperText={
+                    tuningErrors.simulationSteps ||
+                    `Range ${tuningLimits.simulationSteps.min}-${tuningLimits.simulationSteps.max}.`
+                  }
+                  inputProps={{ min: tuningLimits.simulationSteps.min, max: tuningLimits.simulationSteps.max }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -661,8 +787,17 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Training Epochs"
                   value={trainingEpochs}
-                  onChange={(event) => setTrainingEpochs(Math.max(20, Number(event.target.value) || 80))}
+                  onChange={(event) => {
+                    setTrainingEpochs(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, trainingEpochs: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.trainingEpochs)}
+                  helperText={
+                    tuningErrors.trainingEpochs ||
+                    `Range ${tuningLimits.trainingEpochs.min}-${tuningLimits.trainingEpochs.max}.`
+                  }
+                  inputProps={{ min: tuningLimits.trainingEpochs.min, max: tuningLimits.trainingEpochs.max }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -753,7 +888,7 @@ const Dashboard: React.FC = () => {
               container
               spacing={{ xs: 2, sm: 2.5, md: 3 }}
               sx={{
-                '& > .MuiGrid-root': { minWidth: 0 },
+                '& > .MuiGrid-root': { minWidth: { xs: 0, md: 300 } },
                 '& > *': { alignSelf: 'stretch' },
               }}
             >
@@ -766,7 +901,7 @@ const Dashboard: React.FC = () => {
                       background: recommendationPalette.bg,
                     }}
                   >
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1.2, mb: 1 }}>
                         <Typography variant="h5" sx={{ color: colors.text }}>
                           Policy Recommendation
@@ -824,11 +959,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Happiness Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {happinessSeries.length > 0 ? (
                           <Line data={happinessData} options={lineChartOptions} />
                         ) : (
@@ -845,8 +980,19 @@ const Dashboard: React.FC = () => {
               {metaAgentSummary && (
                 <Grid size={{ xs: 12 }}>
                   <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
-                    <Card sx={cardSx}>
-                      <CardContent>
+                    <Card
+                      sx={{
+                        ...cardSx,
+                        minHeight: { xs: 'auto', md: 680 },
+                      }}
+                    >
+                      <CardContent
+                        sx={{
+                          ...cardContentSx,
+                          overflowY: { xs: 'visible', md: 'auto' },
+                          maxHeight: { xs: 'none', md: 760 },
+                        }}
+                      >
                         <Typography variant="h5" sx={{ color: colors.text, mb: 1.2 }}>
                           Governance And Security Meta-Agent
                         </Typography>
@@ -871,14 +1017,14 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${issue.code}-${index}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.2,
+                                  mb: 1.5,
+                                  p: { xs: 1.4, sm: 1.7 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
                                   [{issue.severity.toUpperCase()}] {issue.stage}: {issue.message}
                                 </Typography>
                               </Box>
@@ -900,14 +1046,14 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${flag.code}-${index}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.2,
+                                  mb: 1.5,
+                                  p: { xs: 1.4, sm: 1.7 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
                                   [{flag.severity.toUpperCase()}] {flag.stage}: {flag.message}
                                 </Typography>
                               </Box>
@@ -929,14 +1075,14 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${event.stage}-${index}-${event.timestamp}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.1,
+                                  mb: 1.4,
+                                  p: { xs: 1.4, sm: 1.6 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.45, ...wrappedTextSx }}>
                                   {event.stage} - {event.status}
                                   {event.duration_ms != null ? ` (${toDisplayMs(event.duration_ms)})` : ''}
                                 </Typography>
@@ -960,11 +1106,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Policy Support Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {supportSeries.length > 0 ? (
                           <Line data={supportData} options={lineChartOptions} />
                         ) : (
@@ -981,11 +1127,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Average Income Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {incomeSeries.length > 0 ? (
                           <Line data={incomeData} options={lineChartOptions} />
                         ) : (
@@ -1002,11 +1148,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Occupation Distribution
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {Object.keys(results.population_stats.occupations || {}).length > 0 ? (
                           <Pie data={occupationData} options={pieChartOptions} />
                         ) : (
@@ -1023,7 +1169,7 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Policy Analysis
                       </Typography>
@@ -1080,21 +1226,51 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Pipeline Diagnostics
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                         <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
                         {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
-                        <Chip label={`Population: ${results.pipeline.population_size}`} sx={wrappedChipSx} />
-                        <Chip label={`Sample: ${results.pipeline.sample_size}`} sx={wrappedChipSx} />
+                        <Chip
+                          label={`Population: ${results.pipeline.population_size}${results.pipeline.requested_population_size != null ? ` (requested ${results.pipeline.requested_population_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip
+                          label={`Sample: ${results.pipeline.sample_size}${results.pipeline.requested_sample_size != null ? ` (requested ${results.pipeline.requested_sample_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
                         <Chip label={`Steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
-                        <Chip label={`Epochs: ${results.pipeline.training_epochs}`} sx={wrappedChipSx} />
+                        <Chip
+                          label={`Epochs: ${results.pipeline.training_epochs}${results.pipeline.requested_training_epochs != null ? ` (requested ${results.pipeline.requested_training_epochs})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip
+                          label={`Batch size: ${results.pipeline.batch_size}${results.pipeline.requested_batch_size != null ? ` (requested ${results.pipeline.requested_batch_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        {results.pipeline.random_seed != null && (
+                          <Chip label={`Seed: ${results.pipeline.random_seed}`} sx={wrappedChipSx} />
+                        )}
                         {results.pipeline.sample_strategy && (
                           <Chip label={`Sampling: ${results.pipeline.sample_strategy}`} sx={wrappedChipSx} />
                         )}
                       </Box>
+
+                      {results.pipeline.sample_size_capped && (
+                        <Typography variant="body2" sx={{ color: '#fbbf24', mb: 0.8, ...wrappedTextSx }}>
+                          Requested sample size exceeded available population and was capped.
+                        </Typography>
+                      )}
+
+                      {results.pipeline.sampling_diagnostics?.consistency_mae != null && (
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
+                          Label consistency MAE: {results.pipeline.sampling_diagnostics.consistency_mae.toFixed(4)}
+                          {' '}(probe size {results.pipeline.sampling_diagnostics.consistency_sample_size})
+                        </Typography>
+                      )}
+
                       <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
                         Total runtime: {toDisplayMs(results.pipeline.timings_ms.total_ms)}
                       </Typography>
@@ -1122,6 +1298,17 @@ const Dashboard: React.FC = () => {
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             Val loss: {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Val MAE: {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
                           </Typography>
+                          {results.pipeline.model_validation.early_stopped != null && (
+                            <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
+                              Early stopped: {results.pipeline.model_validation.early_stopped ? 'yes' : 'no'}
+                              {results.pipeline.model_validation.best_epoch != null
+                                ? ` | Best epoch: ${results.pipeline.model_validation.best_epoch}`
+                                : ''}
+                              {results.pipeline.model_validation.train_validation_mae_gap != null
+                                ? ` | Train-Val MAE gap: ${results.pipeline.model_validation.train_validation_mae_gap.toFixed(4)}`
+                                : ''}
+                            </Typography>
+                          )}
                         </>
                       )}
                     </CardContent>
@@ -1132,7 +1319,7 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Population Stats
                       </Typography>
@@ -1171,7 +1358,7 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Citizen Reaction Preview
                       </Typography>
