@@ -169,7 +169,7 @@ const Dashboard: React.FC = () => {
   const [populationSize, setPopulationSize] = useState(3000);
   const [sampleSize, setSampleSize] = useState(120);
   const [simulationSteps, setSimulationSteps] = useState(12);
-  const [trainingEpochs, setTrainingEpochs] = useState(80);
+  const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const policyCharacterCount = policy.trim().length;
