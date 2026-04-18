@@ -53,6 +53,7 @@ class PolicyRequest(BaseModel):
     sample_size: int = Field(default=120, ge=20, le=600)
     steps: int = Field(default=12, ge=3, le=80)
     training_epochs: int = Field(default=40, ge=20, le=500)
+    batch_size: int = Field(default=32, ge=4, le=256)
 
 
 class PipelineTimings(BaseModel):
@@ -268,6 +269,7 @@ async def simulate(request: PolicyRequest):
             "sample_size": request.sample_size,
             "steps": request.steps,
             "training_epochs": request.training_epochs,
+            "batch_size": request.batch_size,
         },
     )
     meta_agent.evaluate_policy_text(run_id, policy_text)
@@ -361,6 +363,7 @@ async def simulate(request: PolicyRequest):
             y,
             epochs=request.training_epochs,
             return_metrics=True,
+            batch_size=request.batch_size,
         )
         model_training_ms = (time.perf_counter() - step_start) * 1000
         meta_agent.record_event(

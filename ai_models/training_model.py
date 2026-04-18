@@ -136,9 +136,9 @@ class ReactionModel(nn.Module):
 # Training
 # ---------------------------------------------------------------------------
 
-def train_model(X, y, epochs=200, validation_split=0.2, return_metrics=False):
+def train_model(X, y, epochs=200, validation_split=0.2, return_metrics=False, batch_size=32):
     """
-    Train ReactionModel on (X, y).
+    Train ReactionModel on (X, y) using mini-batch training.
     Returns: (model, train_mean, train_std) by default.
     If return_metrics=True, returns (model, train_mean, train_std, diagnostics).
     The mean and std MUST be passed to evaluate_model and predict_batch.
@@ -171,17 +171,38 @@ def train_model(X, y, epochs=200, validation_split=0.2, return_metrics=False):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_fn = nn.MSELoss()
 
+    # Mini-batch training for better efficiency
+    batch_size = max(1, min(batch_size, len(train_idx)))
+    num_batches = (len(train_idx) + batch_size - 1) // batch_size
+
     for epoch in range(epochs):
         model.train()
-        predictions = model(X_train)
-        loss = loss_fn(predictions, y_train)
+        epoch_loss = 0.0
+        
+        # Shuffle training data each epoch
+        perm = torch.randperm(len(train_idx))
+        X_train_shuffled = X_train[perm]
+        y_train_shuffled = y_train[perm]
+        
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, len(train_idx))
+            
+            X_batch = X_train_shuffled[start_idx:end_idx]
+            y_batch = y_train_shuffled[start_idx:end_idx]
+            
+            predictions = model(X_batch)
+            loss = loss_fn(predictions, y_batch)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            epoch_loss += loss.item()
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
+        avg_epoch_loss = epoch_loss / num_batches
         if epoch % 40 == 0:
-            logger.debug(f"Epoch {epoch:3d} — loss: {loss.item():.6f}")
+            logger.debug(f"Epoch {epoch:3d} — loss: {avg_epoch_loss:.6f}")
 
     model.eval()
     with torch.no_grad():
