@@ -589,7 +589,7 @@ const Dashboard: React.FC = () => {
         py: { xs: 3, sm: 4, md: 5 },
       }}
     >
-      <Container maxWidth="lg" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
+      <Container maxWidth="xl" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
         <motion.div
           initial={{ opacity: 0, y: 34 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1166,7 +1166,7 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
@@ -1223,9 +1223,14 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
-                  <Card sx={cardSx}>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      minHeight: { xs: 'auto', md: 430 },
+                    }}
+                  >
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Pipeline Diagnostics
@@ -1316,7 +1321,7 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
@@ -1355,9 +1360,14 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
-                  <Card sx={cardSx}>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      minHeight: { xs: 'auto', md: 420 },
+                    }}
+                  >
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
                         Citizen Reaction Preview
