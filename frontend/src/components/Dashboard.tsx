@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
   Container,
   Grid,
   LinearProgress,
@@ -67,6 +68,19 @@ interface PolicyAnalysis {
   recommendation_key_risks?: string[];
   recommendation_conditions?: string[];
   recommendation_source?: string;
+}
+
+interface RecommendationSummary {
+  status: 'good_to_go' | 'needs_changes' | 'not_recommended' | string;
+  badge: string;
+  headline: string;
+  plain_summary: string;
+  confidence: number;
+  key_impact: string;
+  key_risk: string;
+  reasons: string[];
+  next_actions: string[];
+  source?: string;
 }
 
 interface PipelineTimings {
@@ -172,6 +186,7 @@ interface SimulationResults {
   income_trend: number[];
   population_stats: PopulationStats;
   policy_analysis: PolicyAnalysis;
+  recommendation_summary?: RecommendationSummary;
   pipeline: PipelineInfo;
   reaction_preview: ReactionPreview[];
   meta_agent?: MetaAgentSummary;
@@ -181,6 +196,7 @@ const buildStepLabels = (seriesLength: number) =>
   Array.from({ length: Math.max(seriesLength, 1) }, (_value, index) => `Step ${index + 1}`);
 
 const toDisplayMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`);
+const toDisplayPercent = (value: number) => `${(Math.max(0, Math.min(1, value)) * 100).toFixed(0)}%`;
 
 const tuningLimits = {
   populationSize: { min: 200, max: 20000, defaultValue: 2000 },
@@ -202,6 +218,7 @@ const Dashboard: React.FC = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
   const [tuningErrors, setTuningErrors] = useState<TuningErrors>({});
+  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
   const [populationSize, setPopulationSize] = useState(2000);
   const [sampleSize, setSampleSize] = useState(100);
@@ -280,6 +297,7 @@ const Dashboard: React.FC = () => {
     }
 
     setUiError(null);
+    setShowAdvancedDetails(false);
     setLoading(true);
 
     try {
@@ -480,22 +498,73 @@ const Dashboard: React.FC = () => {
     };
   };
 
-  const recommendation = (results?.policy_analysis.recommendation || 'conditional').toLowerCase();
-  const recommendationLabel =
-    recommendation === 'implement'
-      ? 'Implement'
-      : recommendation === 'do_not_implement'
-      ? 'Do Not Implement'
-      : 'Conditional';
+  const recommendationSummary = useMemo<RecommendationSummary | null>(() => {
+    if (!results) {
+      return null;
+    }
+
+    if (results.recommendation_summary) {
+      return results.recommendation_summary;
+    }
+
+    const fallbackLabel = (results.policy_analysis.recommendation || 'conditional').toLowerCase();
+    const fallbackStatus =
+      fallbackLabel === 'implement'
+        ? 'good_to_go'
+        : fallbackLabel === 'do_not_implement'
+        ? 'not_recommended'
+        : 'needs_changes';
+
+    const fallbackBadge =
+      fallbackStatus === 'good_to_go'
+        ? 'Good to Go'
+        : fallbackStatus === 'not_recommended'
+        ? 'Not Recommended'
+        : 'Needs Changes';
+
+    return {
+      status: fallbackStatus,
+      badge: fallbackBadge,
+      headline:
+        fallbackStatus === 'good_to_go'
+          ? 'Proceed with rollout'
+          : fallbackStatus === 'not_recommended'
+          ? 'Do not launch yet'
+          : 'Refine before launch',
+      plain_summary:
+        results.policy_analysis.recommendation_reasoning ||
+        'The simulation completed, but a simplified recommendation summary was not returned.',
+      confidence: results.policy_analysis.recommendation_confidence ?? 0.5,
+      key_impact: 'Review trend cards for expected population impact.',
+      key_risk:
+        (results.policy_analysis.recommendation_key_risks || [])[0] ||
+        'Open Advanced Details to inspect potential risks and diagnostics.',
+      reasons: (
+        results.policy_analysis.recommendation_key_risks || [
+          'The detailed recommendation did not include plain-language reasons in this run.',
+        ]
+      ).slice(0, 3),
+      next_actions: (
+        results.policy_analysis.recommendation_conditions || [
+          'Review affected groups and rerun after adjusting policy design.',
+          'Use Advanced Details to validate model and governance diagnostics.',
+        ]
+      ).slice(0, 2),
+      source: results.policy_analysis.recommendation_source,
+    };
+  }, [results]);
+
+  const decisionStatus = recommendationSummary?.status ?? 'needs_changes';
+  const recommendationLabel = recommendationSummary?.badge ?? 'Needs Changes';
 
   const recommendationPalette =
-    recommendation === 'implement'
+    decisionStatus === 'good_to_go'
       ? {
           border: 'rgba(34, 197, 94, 0.5)',
           bg: 'rgba(20, 83, 45, 0.28)',
           chipBg: 'rgba(34, 197, 94, 0.2)',
         }
-      : recommendation === 'do_not_implement'
+      : decisionStatus === 'not_recommended'
       ? {
           border: 'rgba(248, 113, 113, 0.52)',
           bg: 'rgba(127, 29, 29, 0.3)',
@@ -506,6 +575,12 @@ const Dashboard: React.FC = () => {
           bg: 'rgba(120, 53, 15, 0.28)',
           chipBg: 'rgba(251, 191, 36, 0.22)',
         };
+
+  const finalSupportValue = supportSeries.length > 0 ? supportSeries[supportSeries.length - 1] : 0;
+  const finalHappinessValue = happinessSeries.length > 0 ? happinessSeries[happinessSeries.length - 1] : 0;
+  const incomeDelta = results
+    ? results.population_stats.avg_income_end - results.population_stats.avg_income_start
+    : 0;
 
   const cardSx = {
     background: colors.cardBg,
@@ -737,7 +812,12 @@ const Dashboard: React.FC = () => {
                     tuningErrors.populationSize ||
                     `Range ${tuningLimits.populationSize.min}-${tuningLimits.populationSize.max}.`
                   }
-                  inputProps={{ min: tuningLimits.populationSize.min, max: tuningLimits.populationSize.max }}
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.populationSize.min,
+                      max: tuningLimits.populationSize.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -757,7 +837,12 @@ const Dashboard: React.FC = () => {
                     tuningErrors.sampleSize ||
                     `Range ${tuningLimits.sampleSize.min}-${tuningLimits.sampleSize.max}.`
                   }
-                  inputProps={{ min: tuningLimits.sampleSize.min, max: tuningLimits.sampleSize.max }}
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.sampleSize.min,
+                      max: tuningLimits.sampleSize.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -777,7 +862,12 @@ const Dashboard: React.FC = () => {
                     tuningErrors.simulationSteps ||
                     `Range ${tuningLimits.simulationSteps.min}-${tuningLimits.simulationSteps.max}.`
                   }
-                  inputProps={{ min: tuningLimits.simulationSteps.min, max: tuningLimits.simulationSteps.max }}
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.simulationSteps.min,
+                      max: tuningLimits.simulationSteps.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -797,7 +887,12 @@ const Dashboard: React.FC = () => {
                     tuningErrors.trainingEpochs ||
                     `Range ${tuningLimits.trainingEpochs.min}-${tuningLimits.trainingEpochs.max}.`
                   }
-                  inputProps={{ min: tuningLimits.trainingEpochs.min, max: tuningLimits.trainingEpochs.max }}
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.trainingEpochs.min,
+                      max: tuningLimits.trainingEpochs.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -883,6 +978,185 @@ const Dashboard: React.FC = () => {
                 Running in mock LLM mode. Configure GROQ_API_KEY for real model calls and richer reaction fidelity.
               </Alert>
             )}
+
+            <Grid
+              container
+              spacing={{ xs: 2, sm: 2.5, md: 3 }}
+              sx={{
+                '& > .MuiGrid-root': { minWidth: { xs: 0, md: 280 } },
+                '& > *': { alignSelf: 'stretch' },
+                mb: 2,
+              }}
+            >
+              <Grid size={{ xs: 12, md: 8 }}>
+                <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      borderColor: recommendationPalette.border,
+                      background: recommendationPalette.bg,
+                    }}
+                  >
+                    <CardContent sx={cardContentSx}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          gap: 1.2,
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="h5" sx={{ color: colors.text }}>
+                          Policy Decision
+                        </Typography>
+                        <Chip
+                          label={recommendationLabel}
+                          sx={{
+                            fontWeight: 700,
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
+                          }}
+                        />
+                        <Chip
+                          label={`Confidence: ${((recommendationSummary?.confidence ?? 0.5) * 100).toFixed(0)}%`}
+                          sx={{
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
+                          }}
+                        />
+                        {recommendationSummary?.source && (
+                          <Chip
+                            label={`Source: ${recommendationSummary.source}`}
+                            sx={{
+                              border: `1px solid ${recommendationPalette.border}`,
+                              backgroundColor: recommendationPalette.chipBg,
+                              ...wrappedChipSx,
+                            }}
+                          />
+                        )}
+                      </Box>
+
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 0.8, ...wrappedTextSx }}>
+                        {recommendationSummary?.headline || 'Review decision summary'}
+                      </Typography>
+                      <Typography sx={{ color: colors.textMuted, mb: 1.2, lineHeight: 1.5, ...wrappedTextSx }}>
+                        {recommendationSummary?.plain_summary ||
+                          'The simulation completed, but a plain-language summary is not available for this run.'}
+                      </Typography>
+
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
+                        Main impact: {recommendationSummary?.key_impact || 'Impact summary not available.'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, mt: 0.6, ...wrappedTextSx }}>
+                        Main risk: {recommendationSummary?.key_risk || 'Risk summary not available.'}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1.4 }}>
+                        Quick Snapshot
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        <Chip label={`Support: ${toDisplayPercent(finalSupportValue)}`} sx={wrappedChipSx} />
+                        <Chip label={`Wellbeing: ${toDisplayPercent(finalHappinessValue)}`} sx={wrappedChipSx} />
+                        <Chip
+                          label={`Income change: ${incomeDelta >= 0 ? '+' : '-'}Rs ${Math.abs(incomeDelta).toFixed(0)}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip label={`Population: ${results.population_stats.total}`} sx={wrappedChipSx} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1 }}>
+                        Why This Decision
+                      </Typography>
+                      {(recommendationSummary?.reasons || []).length > 0 ? (
+                        (recommendationSummary?.reasons || []).slice(0, 3).map((reason, index) => (
+                          <Typography
+                            key={`${reason}-${index}`}
+                            variant="body2"
+                            sx={{ color: colors.textMuted, mb: 0.7, lineHeight: 1.45, ...wrappedTextSx }}
+                          >
+                            {index + 1}. {reason}
+                          </Typography>
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          No plain-language reasons were returned for this run.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1 }}>
+                        Next Actions
+                      </Typography>
+                      {(recommendationSummary?.next_actions || []).length > 0 ? (
+                        (recommendationSummary?.next_actions || []).slice(0, 3).map((action, index) => (
+                          <Typography
+                            key={`${action}-${index}`}
+                            variant="body2"
+                            sx={{ color: colors.textMuted, mb: 0.7, lineHeight: 1.45, ...wrappedTextSx }}
+                          >
+                            {index + 1}. {action}
+                          </Typography>
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          No next-step actions were returned for this run.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setShowAdvancedDetails((previous) => !previous)}
+                    sx={{
+                      borderColor: colors.cardBorderHover,
+                      color: colors.text,
+                      borderRadius: 999,
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        borderColor: colors.accentCyan,
+                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      },
+                    }}
+                  >
+                    {showAdvancedDetails ? 'Hide Advanced Details' : 'Show Advanced Details'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Collapse in={showAdvancedDetails} timeout="auto" unmountOnExit={false}>
 
             <Grid
               container
@@ -1399,6 +1673,7 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
             </Grid>
+            </Collapse>
           </motion.div>
         )}
       </Container>
