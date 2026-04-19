@@ -197,6 +197,21 @@ const buildStepLabels = (seriesLength: number) =>
 
 const toDisplayMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`);
 const toDisplayPercent = (value: number) => `${(Math.max(0, Math.min(1, value)) * 100).toFixed(0)}%`;
+const formatLabel = (value: string) =>
+  value
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const formatSeverityLabel = (severity: string) => {
+  if (severity === 'critical') {
+    return 'High';
+  }
+  if (severity === 'warning') {
+    return 'Medium';
+  }
+  return 'Info';
+};
 
 const tuningLimits = {
   populationSize: { min: 200, max: 20000, defaultValue: 2000 },
@@ -1178,7 +1193,7 @@ const Dashboard: React.FC = () => {
                     <CardContent sx={cardContentSx}>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1.2, mb: 1 }}>
                         <Typography variant="h5" sx={{ color: colors.text }}>
-                          Policy Recommendation
+                          Detailed Recommendation Notes
                         </Typography>
                         <Chip
                           label={recommendationLabel}
@@ -1211,18 +1226,18 @@ const Dashboard: React.FC = () => {
 
                       <Typography sx={{ color: colors.textMuted, mb: 1.2, ...wrappedTextSx }}>
                         {results.policy_analysis.recommendation_reasoning ||
-                          'No recommendation narrative was returned for this run.'}
+                          'Detailed recommendation notes were not returned for this run.'}
                       </Typography>
 
                       {(results.policy_analysis.recommendation_key_risks || []).length > 0 && (
                         <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
-                          Risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
+                          Main risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
                         </Typography>
                       )}
 
                       {(results.policy_analysis.recommendation_conditions || []).length > 0 && (
                         <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                          Conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
+                          Required conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
                         </Typography>
                       )}
                     </CardContent>
@@ -1235,7 +1250,7 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Happiness Trend
+                        Wellbeing Trend (Happiness)
                       </Typography>
                       <Box sx={chartBoxSx}>
                         {happinessSeries.length > 0 ? (
@@ -1268,21 +1283,21 @@ const Dashboard: React.FC = () => {
                         }}
                       >
                         <Typography variant="h5" sx={{ color: colors.text, mb: 1.2 }}>
-                          Governance And Security Meta-Agent
+                          System Checks and Audit
                         </Typography>
                         <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.6, ...wrappedTextSx }}>
-                          This monitor tracks pipeline decisions, flags anomalies, and stores an audit snapshot for each simulation run.
+                          Tracks policy guardrails, unusual data patterns, and a run log for traceability.
                         </Typography>
 
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                          <Chip label={`Status: ${metaAgentSummary.status}`} sx={wrappedChipSx} />
-                          <Chip label={`Events: ${metaAgentSummary.event_count}`} sx={wrappedChipSx} />
-                          <Chip label={`Governance issues: ${governanceIssues.length}`} sx={wrappedChipSx} />
-                          <Chip label={`Anomalies: ${anomalyFlags.length}`} sx={wrappedChipSx} />
+                          <Chip label={`Run status: ${formatLabel(metaAgentSummary.status)}`} sx={wrappedChipSx} />
+                          <Chip label={`Events logged: ${metaAgentSummary.event_count}`} sx={wrappedChipSx} />
+                          <Chip label={`Guardrail alerts: ${governanceIssues.length}`} sx={wrappedChipSx} />
+                          <Chip label={`Data warnings: ${anomalyFlags.length}`} sx={wrappedChipSx} />
                         </Box>
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.8 }}>
-                          Governance Findings
+                          Guardrail Alerts
                         </Typography>
                         {governanceIssues.length > 0 ? (
                           governanceIssues.slice(0, 4).map((issue, index) => {
@@ -1299,19 +1314,19 @@ const Dashboard: React.FC = () => {
                                 }}
                               >
                                 <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
-                                  [{issue.severity.toUpperCase()}] {issue.stage}: {issue.message}
+                                  {formatSeverityLabel(issue.severity)} priority - {formatLabel(issue.stage)}: {issue.message}
                                 </Typography>
                               </Box>
                             );
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
-                            No governance issues detected for this run.
+                            No guardrail alerts were detected for this run.
                           </Typography>
                         )}
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                          Anomaly Flags
+                          Data Warnings
                         </Typography>
                         {anomalyFlags.length > 0 ? (
                           anomalyFlags.slice(0, 4).map((flag, index) => {
@@ -1328,19 +1343,19 @@ const Dashboard: React.FC = () => {
                                 }}
                               >
                                 <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
-                                  [{flag.severity.toUpperCase()}] {flag.stage}: {flag.message}
+                                  {formatSeverityLabel(flag.severity)} priority - {formatLabel(flag.stage)}: {flag.message}
                                 </Typography>
                               </Box>
                             );
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
-                            No anomalies detected for this run.
+                            No data warnings were detected for this run.
                           </Typography>
                         )}
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                          Audit Trail Preview
+                          Recent Run Log
                         </Typography>
                         {auditTrailPreview.length > 0 ? (
                           auditTrailPreview.slice(-6).map((event, index) => {
@@ -1357,7 +1372,7 @@ const Dashboard: React.FC = () => {
                                 }}
                               >
                                 <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.45, ...wrappedTextSx }}>
-                                  {event.stage} - {event.status}
+                                  Step: {formatLabel(event.stage)} | Status: {formatLabel(event.status)}
                                   {event.duration_ms != null ? ` (${toDisplayMs(event.duration_ms)})` : ''}
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
@@ -1368,7 +1383,7 @@ const Dashboard: React.FC = () => {
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted }}>
-                            Audit trail is empty for this run.
+                            No run log entries are available for this simulation.
                           </Typography>
                         )}
                       </CardContent>
@@ -1382,7 +1397,7 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Policy Support Trend
+                        Public Support Trend
                       </Typography>
                       <Box sx={chartBoxSx}>
                         {supportSeries.length > 0 ? (
@@ -1403,7 +1418,7 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Average Income Trend
+                        Income Trend
                       </Typography>
                       <Box sx={chartBoxSx}>
                         {incomeSeries.length > 0 ? (
@@ -1424,7 +1439,7 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Occupation Distribution
+                        Jobs In Population Sample
                       </Typography>
                       <Box sx={chartBoxSx}>
                         {Object.keys(results.population_stats.occupations || {}).length > 0 ? (
@@ -1445,52 +1460,52 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Policy Analysis
+                        Policy Parsing Details
                       </Typography>
                       <Typography sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.summary}
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Domain: ${results.policy_analysis.domain}`} sx={wrappedChipSx} />
-                        <Chip label={`Mechanism: ${results.policy_analysis.mechanism}`} sx={wrappedChipSx} />
-                        <Chip label={`Parser: ${results.policy_analysis.parsed_by}`} sx={wrappedChipSx} />
-                        <Chip label={`Time effect: ${results.policy_analysis.time_effect}`} sx={wrappedChipSx} />
+                        <Chip label={`Policy area: ${results.policy_analysis.domain}`} sx={wrappedChipSx} />
+                        <Chip label={`Delivery method: ${results.policy_analysis.mechanism}`} sx={wrappedChipSx} />
+                        <Chip label={`Parsing method: ${results.policy_analysis.parsed_by}`} sx={wrappedChipSx} />
+                        <Chip label={`Expected timing: ${results.policy_analysis.time_effect}`} sx={wrappedChipSx} />
                       </Box>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
-                        Affected Groups
+                        Groups Affected Most
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.affected_groups.length > 0
                           ? results.policy_analysis.affected_groups.join(', ')
-                          : 'No explicit groups extracted in this run.'}
+                          : 'No clearly affected groups were identified in this run.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
-                        Key Attributes
+                        Signals Used For Simulation
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {results.policy_analysis.key_attributes.length > 0
                           ? results.policy_analysis.key_attributes.join(', ')
-                          : 'No key attributes extracted in this run.'}
+                          : 'No key simulation signals were extracted in this run.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
-                        Potential Winners
+                        Groups Likely To Benefit
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_winners || []).length > 0
                           ? (results.policy_analysis.potential_winners || []).join(', ')
-                          : 'No clear winner groups identified.'}
+                          : 'No clear benefit groups were identified.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
-                        Potential Losers
+                        Groups Likely To Face Downside
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_losers || []).length > 0
                           ? (results.policy_analysis.potential_losers || []).join(', ')
-                          : 'No explicit loser groups identified.'}
+                          : 'No clear downside groups were identified.'}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -1507,22 +1522,22 @@ const Dashboard: React.FC = () => {
                   >
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Pipeline Diagnostics
+                        Technical Run Details
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
-                        {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
+                        <Chip label={`LLM mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
+                        {results.pipeline.run_id && <Chip label={`Run ID: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
                         <Chip
-                          label={`Population: ${results.pipeline.population_size}${results.pipeline.requested_population_size != null ? ` (requested ${results.pipeline.requested_population_size})` : ''}`}
+                          label={`Population used: ${results.pipeline.population_size}${results.pipeline.requested_population_size != null ? ` (requested ${results.pipeline.requested_population_size})` : ''}`}
                           sx={wrappedChipSx}
                         />
                         <Chip
-                          label={`Sample: ${results.pipeline.sample_size}${results.pipeline.requested_sample_size != null ? ` (requested ${results.pipeline.requested_sample_size})` : ''}`}
+                          label={`Citizens sampled: ${results.pipeline.sample_size}${results.pipeline.requested_sample_size != null ? ` (requested ${results.pipeline.requested_sample_size})` : ''}`}
                           sx={wrappedChipSx}
                         />
-                        <Chip label={`Steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
+                        <Chip label={`Timeline steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
                         <Chip
-                          label={`Epochs: ${results.pipeline.training_epochs}${results.pipeline.requested_training_epochs != null ? ` (requested ${results.pipeline.requested_training_epochs})` : ''}`}
+                          label={`Training cycles: ${results.pipeline.training_epochs}${results.pipeline.requested_training_epochs != null ? ` (requested ${results.pipeline.requested_training_epochs})` : ''}`}
                           sx={wrappedChipSx}
                         />
                         <Chip
@@ -1539,14 +1554,14 @@ const Dashboard: React.FC = () => {
 
                       {results.pipeline.sample_size_capped && (
                         <Typography variant="body2" sx={{ color: '#fbbf24', mb: 0.8, ...wrappedTextSx }}>
-                          Requested sample size exceeded available population and was capped.
+                          Requested sample exceeded available population, so the sample size was reduced.
                         </Typography>
                       )}
 
                       {results.pipeline.sampling_diagnostics?.consistency_mae != null && (
                         <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
-                          Label consistency MAE: {results.pipeline.sampling_diagnostics.consistency_mae.toFixed(4)}
-                          {' '}(probe size {results.pipeline.sampling_diagnostics.consistency_sample_size})
+                          Reaction consistency check (lower is better): {results.pipeline.sampling_diagnostics.consistency_mae.toFixed(4)}
+                          {' '}(sampled {results.pipeline.sampling_diagnostics.consistency_sample_size} records)
                         </Typography>
                       )}
 
@@ -1554,32 +1569,32 @@ const Dashboard: React.FC = () => {
                         Total runtime: {toDisplayMs(results.pipeline.timings_ms.total_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Parse: {toDisplayMs(results.pipeline.timings_ms.parse_policy_ms)} | Mapping: {toDisplayMs(results.pipeline.timings_ms.map_attributes_ms)}
+                        Policy parsing: {toDisplayMs(results.pipeline.timings_ms.parse_policy_ms)} | Attribute mapping: {toDisplayMs(results.pipeline.timings_ms.map_attributes_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Population: {toDisplayMs(results.pipeline.timings_ms.population_generation_ms)} | LLM sample: {toDisplayMs(results.pipeline.timings_ms.llm_sampling_ms)}
+                        Population generation: {toDisplayMs(results.pipeline.timings_ms.population_generation_ms)} | LLM sampling: {toDisplayMs(results.pipeline.timings_ms.llm_sampling_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
+                        Model training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Timeline simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
                       </Typography>
 
                       {results.pipeline.model_validation && (
                         <>
                           <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.4, mb: 0.6 }}>
-                            Model Validation
+                            Model Quality Checks
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Samples: total {results.pipeline.model_validation.samples_total}, train {results.pipeline.model_validation.samples_train}, val {results.pipeline.model_validation.samples_validation}
+                            Samples used: total {results.pipeline.model_validation.samples_total}, training {results.pipeline.model_validation.samples_train}, validation {results.pipeline.model_validation.samples_validation}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Train loss: {results.pipeline.model_validation.train_loss.toFixed(4)} | Train MAE: {results.pipeline.model_validation.train_mae.toFixed(4)}
+                            Training error (loss): {results.pipeline.model_validation.train_loss.toFixed(4)} | Training error (MAE): {results.pipeline.model_validation.train_mae.toFixed(4)}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Val loss: {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Val MAE: {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
+                            Validation error (loss): {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Validation error (MAE): {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
                           </Typography>
                           {results.pipeline.model_validation.early_stopped != null && (
                             <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                              Early stopped: {results.pipeline.model_validation.early_stopped ? 'yes' : 'no'}
+                              Early stopping: {results.pipeline.model_validation.early_stopped ? 'yes' : 'no'}
                               {results.pipeline.model_validation.best_epoch != null
                                 ? ` | Best epoch: ${results.pipeline.model_validation.best_epoch}`
                                 : ''}
@@ -1600,7 +1615,7 @@ const Dashboard: React.FC = () => {
                   <Card sx={cardSx}>
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Population Stats
+                        Generated Population Summary
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                         <Chip label={`Total: ${results.population_stats.total}`} sx={wrappedChipSx} />
@@ -1608,7 +1623,7 @@ const Dashboard: React.FC = () => {
                         <Chip label={`Income end: Rs ${results.population_stats.avg_income_end.toFixed(0)}`} sx={wrappedChipSx} />
                       </Box>
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                        Top castes in generated population
+                        Top caste groups in generated population
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                         {topCasteStats.length > 0 ? (
@@ -1644,7 +1659,7 @@ const Dashboard: React.FC = () => {
                   >
                     <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Citizen Reaction Preview
+                        Sample Citizen Reactions
                       </Typography>
                       {(results.reaction_preview || []).slice(0, 3).map((reaction) => (
                         <Box
@@ -1658,10 +1673,10 @@ const Dashboard: React.FC = () => {
                           }}
                         >
                           <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5, ...wrappedTextSx }}>
-                            Citizen #{reaction.citizen_id} - {reaction.occupation} ({reaction.location})
+                            Citizen #{reaction.citizen_id} | {reaction.occupation} ({reaction.location})
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4, ...wrappedTextSx }}>
-                            Happiness: {reaction.happiness_change.toFixed(3)} | Support: {reaction.support_change.toFixed(3)} | Income: Rs {reaction.income_change.toFixed(0)}
+                            Happiness change: {reaction.happiness_change.toFixed(3)} | Support change: {reaction.support_change.toFixed(3)} | Income change: Rs {reaction.income_change.toFixed(0)}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             {reaction.diary_entry}
