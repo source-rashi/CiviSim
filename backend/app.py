@@ -3,7 +3,7 @@ import hashlib
 import random
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -122,12 +122,26 @@ class MetaAgentSummary(BaseModel):
     audit_trail_preview: List[AuditTrailEvent]
 
 
+class RecommendationSummary(BaseModel):
+    status: Literal["good_to_go", "needs_changes", "not_recommended"]
+    badge: str
+    headline: str
+    plain_summary: str
+    confidence: float
+    key_impact: str
+    key_risk: str
+    reasons: List[str]
+    next_actions: List[str]
+    source: str
+
+
 class SimulationResponse(BaseModel):
     happiness_trend: List[float]
     support_trend: List[float]
     income_trend: List[float]
     population_stats: PopulationStats
     policy_analysis: Dict[str, Any]
+    recommendation_summary: RecommendationSummary
     pipeline: Dict[str, Any]
     reaction_preview: List[ReactionPreview]
     meta_agent: MetaAgentSummary
@@ -256,6 +270,132 @@ def _resolve_recommendation(
         return recommendation
 
     return _build_fallback_recommendation(final_metrics)
+
+
+def _to_percentage_text(value: float) -> str:
+    return f"{_clamp(float(value), 0.0, 1.0) * 100:.0f}%"
+
+
+def _build_recommendation_summary(
+    recommendation: Dict[str, Any],
+    final_metrics: Dict[str, float],
+    training_diagnostics: Dict[str, Any],
+    sampling_diagnostics: Dict[str, Any],
+) -> Dict[str, Any]:
+    raw_label = str(recommendation.get("recommendation", "conditional")).lower()
+    confidence = _clamp(float(recommendation.get("confidence_score", 0.5)), 0.0, 1.0)
+    source = str(recommendation.get("source", "heuristic"))
+
+    final_support = float(final_metrics.get("final_support", 0.0))
+    final_happiness = float(final_metrics.get("final_happiness", 0.0))
+    income_change = float(final_metrics.get("income_change", 0.0))
+
+    support_text = _to_percentage_text(final_support)
+    happiness_text = _to_percentage_text(final_happiness)
+
+    key_risks = [
+        str(item).strip()
+        for item in recommendation.get("key_risks", [])
+        if str(item).strip()
+    ]
+    conditions = [
+        str(item).strip()
+        for item in recommendation.get("conditions", [])
+        if str(item).strip()
+    ]
+
+    validation_mae = training_diagnostics.get("validation_mae")
+    consistency_mae = sampling_diagnostics.get("consistency_mae")
+    model_stability_warning = validation_mae is not None and float(validation_mae) > 0.3
+    sampling_stability_warning = consistency_mae is not None and float(consistency_mae) > 0.35
+
+    if (
+        raw_label == "implement"
+        and final_support >= 0.58
+        and final_happiness >= 0.55
+        and income_change >= 0
+        and not model_stability_warning
+        and not sampling_stability_warning
+    ):
+        status = "good_to_go"
+        badge = "Good to Go"
+        headline = "Proceed with rollout"
+        plain_summary = (
+            "This policy is ready for a phased rollout based on current simulation outcomes."
+        )
+        key_impact = (
+            f"Expected support is {support_text} and wellbeing is {happiness_text} by the final step."
+        )
+        key_risk = key_risks[0] if key_risks else "Continue monitoring for local execution gaps during rollout."
+        reasons = [
+            f"Public support remains strong at {support_text} in the final projection.",
+            f"Wellbeing signal is positive with final happiness at {happiness_text}.",
+            "Average income does not decline in the simulated timeline.",
+        ]
+        default_actions = [
+            "Start with a phased rollout in high-readiness districts.",
+            "Track support and income signals weekly during the first cycle.",
+        ]
+    elif (
+        raw_label == "do_not_implement"
+        or final_support < 0.5
+        or final_happiness < 0.5
+        or income_change < 0
+    ):
+        status = "not_recommended"
+        badge = "Not Recommended"
+        headline = "Do not launch yet"
+        plain_summary = (
+            "Current simulation outcomes are too weak to support launch in the present form."
+        )
+        key_impact = (
+            f"Projected support ({support_text}) or wellbeing ({happiness_text}) is below safe launch levels."
+        )
+        key_risk = key_risks[0] if key_risks else "Implementation may reduce trust or wellbeing if launched now."
+        reasons = [
+            "The final support and wellbeing signals are below acceptable confidence thresholds.",
+            "The projected policy impact is uneven and may create avoidable downside.",
+            "Launching now would likely increase delivery and trust risk.",
+        ]
+        default_actions = [
+            "Redesign the policy for vulnerable groups and rerun simulation.",
+            "Pilot alternatives in a limited area before any broader launch.",
+        ]
+    else:
+        status = "needs_changes"
+        badge = "Needs Changes"
+        headline = "Refine before launch"
+        plain_summary = (
+            "The policy shows potential, but adjustments are needed before a safe rollout."
+        )
+        key_impact = (
+            f"Projected support is {support_text} with wellbeing at {happiness_text}, showing mixed signals."
+        )
+        key_risk = key_risks[0] if key_risks else "Outcomes may vary across groups without design adjustments."
+        reasons = [
+            "Simulation shows both benefits and meaningful risk under current assumptions.",
+            "Outcome confidence is moderate rather than consistently strong.",
+            "A limited pilot can reduce rollout risk before scaling.",
+        ]
+        default_actions = [
+            "Adjust targeting and safeguards for affected groups.",
+            "Run a short pilot and reassess with fresh simulation data.",
+        ]
+
+    next_actions = conditions[:2] if conditions else default_actions
+
+    return {
+        "status": status,
+        "badge": badge,
+        "headline": headline,
+        "plain_summary": plain_summary,
+        "confidence": round(confidence, 4),
+        "key_impact": key_impact,
+        "key_risk": key_risk,
+        "reasons": reasons[:3],
+        "next_actions": next_actions,
+        "source": source,
+    }
 
 
 @app.get("/api/health")
@@ -519,6 +659,12 @@ async def simulate(request: PolicyRequest):
             final_metrics,
             population_stats_data,
         )
+        recommendation_summary = _build_recommendation_summary(
+            recommendation,
+            final_metrics,
+            training_diagnostics,
+            sampling_diagnostics,
+        )
         meta_agent.record_event(
             run_id=run_id,
             stage="recommendation",
@@ -576,6 +722,7 @@ async def simulate(request: PolicyRequest):
                 "recommendation_conditions": recommendation.get("conditions", []),
                 "recommendation_source": recommendation.get("source", "heuristic"),
             },
+            "recommendation_summary": recommendation_summary,
             "pipeline": {
                 "run_id": run_id,
                 "llm_mode": llm_mode,
