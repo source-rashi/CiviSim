@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
   Container,
   Grid,
   LinearProgress,
@@ -69,6 +70,19 @@ interface PolicyAnalysis {
   recommendation_source?: string;
 }
 
+interface RecommendationSummary {
+  status: 'good_to_go' | 'needs_changes' | 'not_recommended' | string;
+  badge: string;
+  headline: string;
+  plain_summary: string;
+  confidence: number;
+  key_impact: string;
+  key_risk: string;
+  reasons: string[];
+  next_actions: string[];
+  source?: string;
+}
+
 interface PipelineTimings {
   parse_policy_ms: number;
   map_attributes_ms: number;
@@ -83,11 +97,25 @@ interface PipelineInfo {
   run_id?: string;
   llm_mode: 'groq' | 'mock' | string;
   population_size: number;
+  requested_population_size?: number;
   sample_size: number;
+  requested_sample_size?: number;
+  sample_size_capped?: boolean;
   steps: number;
   training_epochs: number;
+  requested_training_epochs?: number;
   batch_size: number;
+  requested_batch_size?: number;
+  random_seed?: number;
   sample_strategy?: string;
+  sampling_diagnostics?: {
+    requested_sample_size: number;
+    effective_sample_size: number;
+    sample_size_capped: boolean;
+    effective_batch_size: number;
+    consistency_mae: number | null;
+    consistency_sample_size: number;
+  };
   model_validation?: {
     samples_total: number;
     samples_train: number;
@@ -96,6 +124,14 @@ interface PipelineInfo {
     train_mae: number;
     validation_loss: number | null;
     validation_mae: number | null;
+    epochs_requested?: number;
+    epochs_completed?: number;
+    early_stopped?: boolean;
+    best_epoch?: number;
+    best_validation_loss?: number | null;
+    effective_batch_size?: number;
+    random_seed?: number | null;
+    train_validation_mae_gap?: number | null;
   };
   timings_ms: PipelineTimings;
 }
@@ -150,6 +186,7 @@ interface SimulationResults {
   income_trend: number[];
   population_stats: PopulationStats;
   policy_analysis: PolicyAnalysis;
+  recommendation_summary?: RecommendationSummary;
   pipeline: PipelineInfo;
   reaction_preview: ReactionPreview[];
   meta_agent?: MetaAgentSummary;
@@ -159,17 +196,49 @@ const buildStepLabels = (seriesLength: number) =>
   Array.from({ length: Math.max(seriesLength, 1) }, (_value, index) => `Step ${index + 1}`);
 
 const toDisplayMs = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`);
+const toDisplayPercent = (value: number) => `${(Math.max(0, Math.min(1, value)) * 100).toFixed(0)}%`;
+const formatLabel = (value: string) =>
+  value
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const formatSeverityLabel = (severity: string) => {
+  if (severity === 'critical') {
+    return 'High';
+  }
+  if (severity === 'warning') {
+    return 'Medium';
+  }
+  return 'Info';
+};
+
+const tuningLimits = {
+  populationSize: { min: 200, max: 20000, defaultValue: 2000 },
+  sampleSize: { min: 20, max: 600, defaultValue: 100 },
+  simulationSteps: { min: 3, max: 80, defaultValue: 12 },
+  trainingEpochs: { min: 20, max: 500, defaultValue: 40 },
+};
+
+type TuningErrors = {
+  populationSize?: string;
+  sampleSize?: string;
+  simulationSteps?: string;
+  trainingEpochs?: string;
+};
 
 const Dashboard: React.FC = () => {
   const [policy, setPolicy] = useState('');
   const [loading, setLoading] = useState(false);
   const [uiError, setUiError] = useState<string | null>(null);
   const [results, setResults] = useState<SimulationResults | null>(null);
+  const [tuningErrors, setTuningErrors] = useState<TuningErrors>({});
+  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
-  const [populationSize, setPopulationSize] = useState(3000);
-  const [sampleSize, setSampleSize] = useState(120);
+  const [populationSize, setPopulationSize] = useState(2000);
+  const [sampleSize, setSampleSize] = useState(100);
   const [simulationSteps, setSimulationSteps] = useState(12);
-  const [trainingEpochs, setTrainingEpochs] = useState(80);
+  const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const policyCharacterCount = policy.trim().length;
@@ -190,13 +259,60 @@ const Dashboard: React.FC = () => {
     textMuted: '#a8bddf',
   };
 
+  const validateRange = (value: number, min: number, max: number, label: string) => {
+    if (!Number.isFinite(value)) {
+      return `${label} must be a valid number.`;
+    }
+    if (value < min || value > max) {
+      return `${label} must be between ${min} and ${max}.`;
+    }
+    return undefined;
+  };
+
+  const validateTuningInputs = (): boolean => {
+    const nextErrors: TuningErrors = {
+      populationSize: validateRange(
+        populationSize,
+        tuningLimits.populationSize.min,
+        tuningLimits.populationSize.max,
+        'Population'
+      ),
+      sampleSize: validateRange(sampleSize, tuningLimits.sampleSize.min, tuningLimits.sampleSize.max, 'LLM Sample'),
+      simulationSteps: validateRange(
+        simulationSteps,
+        tuningLimits.simulationSteps.min,
+        tuningLimits.simulationSteps.max,
+        'Simulation Steps'
+      ),
+      trainingEpochs: validateRange(
+        trainingEpochs,
+        tuningLimits.trainingEpochs.min,
+        tuningLimits.trainingEpochs.max,
+        'Training Epochs'
+      ),
+    };
+
+    if (!nextErrors.sampleSize && sampleSize > populationSize) {
+      nextErrors.sampleSize = 'LLM Sample cannot be greater than Population.';
+    }
+
+    setTuningErrors(nextErrors);
+    return Object.values(nextErrors).every((value) => !value);
+  };
+
   const handleSimulate = async () => {
     if (!policy.trim()) {
       setUiError('Please enter a policy description before running the simulation.');
       return;
     }
 
+    if (!validateTuningInputs()) {
+      setUiError('Please fix the simulation tuning fields before running.');
+      return;
+    }
+
     setUiError(null);
+    setShowAdvancedDetails(false);
     setLoading(true);
 
     try {
@@ -210,7 +326,7 @@ const Dashboard: React.FC = () => {
           steps: simulationSteps,
           training_epochs: trainingEpochs,
         },
-        { timeout: 120000 }
+        { timeout: 180000 }
       );
       setResults(response.data);
     } catch (error) {
@@ -218,7 +334,7 @@ const Dashboard: React.FC = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
-          setUiError('Simulation timed out. Try reducing population/sample size or training epochs.');
+          setUiError('Simulation exceeded the 3 minute timeout. Try lowering population size, sample size, steps, or epochs.');
         } else {
           const serverDetail =
             typeof error.response?.data?.detail === 'string'
@@ -397,22 +513,73 @@ const Dashboard: React.FC = () => {
     };
   };
 
-  const recommendation = (results?.policy_analysis.recommendation || 'conditional').toLowerCase();
-  const recommendationLabel =
-    recommendation === 'implement'
-      ? 'Implement'
-      : recommendation === 'do_not_implement'
-      ? 'Do Not Implement'
-      : 'Conditional';
+  const recommendationSummary = useMemo<RecommendationSummary | null>(() => {
+    if (!results) {
+      return null;
+    }
+
+    if (results.recommendation_summary) {
+      return results.recommendation_summary;
+    }
+
+    const fallbackLabel = (results.policy_analysis.recommendation || 'conditional').toLowerCase();
+    const fallbackStatus =
+      fallbackLabel === 'implement'
+        ? 'good_to_go'
+        : fallbackLabel === 'do_not_implement'
+        ? 'not_recommended'
+        : 'needs_changes';
+
+    const fallbackBadge =
+      fallbackStatus === 'good_to_go'
+        ? 'Good to Go'
+        : fallbackStatus === 'not_recommended'
+        ? 'Not Recommended'
+        : 'Needs Changes';
+
+    return {
+      status: fallbackStatus,
+      badge: fallbackBadge,
+      headline:
+        fallbackStatus === 'good_to_go'
+          ? 'Proceed with rollout'
+          : fallbackStatus === 'not_recommended'
+          ? 'Do not launch yet'
+          : 'Refine before launch',
+      plain_summary:
+        results.policy_analysis.recommendation_reasoning ||
+        'The simulation completed, but a simplified recommendation summary was not returned.',
+      confidence: results.policy_analysis.recommendation_confidence ?? 0.5,
+      key_impact: 'Review trend cards for expected population impact.',
+      key_risk:
+        (results.policy_analysis.recommendation_key_risks || [])[0] ||
+        'Open Advanced Details to inspect potential risks and diagnostics.',
+      reasons: (
+        results.policy_analysis.recommendation_key_risks || [
+          'The detailed recommendation did not include plain-language reasons in this run.',
+        ]
+      ).slice(0, 3),
+      next_actions: (
+        results.policy_analysis.recommendation_conditions || [
+          'Review affected groups and rerun after adjusting policy design.',
+          'Use Advanced Details to validate model and governance diagnostics.',
+        ]
+      ).slice(0, 2),
+      source: results.policy_analysis.recommendation_source,
+    };
+  }, [results]);
+
+  const decisionStatus = recommendationSummary?.status ?? 'needs_changes';
+  const recommendationLabel = recommendationSummary?.badge ?? 'Needs Changes';
 
   const recommendationPalette =
-    recommendation === 'implement'
+    decisionStatus === 'good_to_go'
       ? {
           border: 'rgba(34, 197, 94, 0.5)',
           bg: 'rgba(20, 83, 45, 0.28)',
           chipBg: 'rgba(34, 197, 94, 0.2)',
         }
-      : recommendation === 'do_not_implement'
+      : decisionStatus === 'not_recommended'
       ? {
           border: 'rgba(248, 113, 113, 0.52)',
           bg: 'rgba(127, 29, 29, 0.3)',
@@ -424,6 +591,12 @@ const Dashboard: React.FC = () => {
           chipBg: 'rgba(251, 191, 36, 0.22)',
         };
 
+  const finalSupportValue = supportSeries.length > 0 ? supportSeries[supportSeries.length - 1] : 0;
+  const finalHappinessValue = happinessSeries.length > 0 ? happinessSeries[happinessSeries.length - 1] : 0;
+  const incomeDelta = results
+    ? results.population_stats.avg_income_end - results.population_stats.avg_income_start
+    : 0;
+
   const cardSx = {
     background: colors.cardBg,
     backdropFilter: 'blur(14px)',
@@ -432,12 +605,28 @@ const Dashboard: React.FC = () => {
     overflow: 'hidden',
     minWidth: 0,
     height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
     boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
     transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
     '&:hover': {
       borderColor: colors.cardBorderHover,
       boxShadow: '0 24px 48px rgba(14, 165, 233, 0.22)',
     },
+  };
+
+  const cardContentSx = {
+    p: { xs: 1.8, sm: 2.2, md: 2.6 },
+    '&:last-child': {
+      pb: { xs: 1.8, sm: 2.2, md: 2.6 },
+    },
+  };
+
+  const chartBoxSx = {
+    minHeight: { xs: 260, sm: 300, md: 340 },
+    maxHeight: { xs: 340, sm: 380, md: 420 },
+    overflow: 'auto',
+    pr: 0.5,
   };
 
   const tuningFieldSx = {
@@ -490,7 +679,7 @@ const Dashboard: React.FC = () => {
         py: { xs: 3, sm: 4, md: 5 },
       }}
     >
-      <Container maxWidth="lg" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
+      <Container maxWidth="xl" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
         <motion.div
           initial={{ opacity: 0, y: 34 }}
           animate={{ opacity: 1, y: 0 }}
@@ -628,8 +817,22 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Population"
                   value={populationSize}
-                  onChange={(event) => setPopulationSize(Math.max(200, Number(event.target.value) || 3000))}
+                  onChange={(event) => {
+                    setPopulationSize(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, populationSize: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.populationSize)}
+                  helperText={
+                    tuningErrors.populationSize ||
+                    `Range ${tuningLimits.populationSize.min}-${tuningLimits.populationSize.max}.`
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.populationSize.min,
+                      max: tuningLimits.populationSize.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -639,8 +842,22 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="LLM Sample"
                   value={sampleSize}
-                  onChange={(event) => setSampleSize(Math.max(20, Number(event.target.value) || 120))}
+                  onChange={(event) => {
+                    setSampleSize(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, sampleSize: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.sampleSize)}
+                  helperText={
+                    tuningErrors.sampleSize ||
+                    `Range ${tuningLimits.sampleSize.min}-${tuningLimits.sampleSize.max}.`
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.sampleSize.min,
+                      max: tuningLimits.sampleSize.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -650,8 +867,22 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Simulation Steps"
                   value={simulationSteps}
-                  onChange={(event) => setSimulationSteps(Math.max(3, Number(event.target.value) || 12))}
+                  onChange={(event) => {
+                    setSimulationSteps(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, simulationSteps: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.simulationSteps)}
+                  helperText={
+                    tuningErrors.simulationSteps ||
+                    `Range ${tuningLimits.simulationSteps.min}-${tuningLimits.simulationSteps.max}.`
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.simulationSteps.min,
+                      max: tuningLimits.simulationSteps.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -661,8 +892,22 @@ const Dashboard: React.FC = () => {
                   type="number"
                   label="Training Epochs"
                   value={trainingEpochs}
-                  onChange={(event) => setTrainingEpochs(Math.max(20, Number(event.target.value) || 80))}
+                  onChange={(event) => {
+                    setTrainingEpochs(Number(event.target.value));
+                    setTuningErrors((prev) => ({ ...prev, trainingEpochs: undefined }));
+                  }}
                   disabled={loading}
+                  error={Boolean(tuningErrors.trainingEpochs)}
+                  helperText={
+                    tuningErrors.trainingEpochs ||
+                    `Range ${tuningLimits.trainingEpochs.min}-${tuningLimits.trainingEpochs.max}.`
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      min: tuningLimits.trainingEpochs.min,
+                      max: tuningLimits.trainingEpochs.max,
+                    },
+                  }}
                   sx={tuningFieldSx}
                 />
               </Grid>
@@ -753,7 +998,186 @@ const Dashboard: React.FC = () => {
               container
               spacing={{ xs: 2, sm: 2.5, md: 3 }}
               sx={{
-                '& > .MuiGrid-root': { minWidth: 0 },
+                '& > .MuiGrid-root': { minWidth: { xs: 0, md: 280 } },
+                '& > *': { alignSelf: 'stretch' },
+                mb: 2,
+              }}
+            >
+              <Grid size={{ xs: 12, md: 8 }}>
+                <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      borderColor: recommendationPalette.border,
+                      background: recommendationPalette.bg,
+                    }}
+                  >
+                    <CardContent sx={cardContentSx}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          gap: 1.2,
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="h5" sx={{ color: colors.text }}>
+                          Policy Decision
+                        </Typography>
+                        <Chip
+                          label={recommendationLabel}
+                          sx={{
+                            fontWeight: 700,
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
+                          }}
+                        />
+                        <Chip
+                          label={`Confidence: ${((recommendationSummary?.confidence ?? 0.5) * 100).toFixed(0)}%`}
+                          sx={{
+                            border: `1px solid ${recommendationPalette.border}`,
+                            backgroundColor: recommendationPalette.chipBg,
+                            ...wrappedChipSx,
+                          }}
+                        />
+                        {recommendationSummary?.source && (
+                          <Chip
+                            label={`Source: ${recommendationSummary.source}`}
+                            sx={{
+                              border: `1px solid ${recommendationPalette.border}`,
+                              backgroundColor: recommendationPalette.chipBg,
+                              ...wrappedChipSx,
+                            }}
+                          />
+                        )}
+                      </Box>
+
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 0.8, ...wrappedTextSx }}>
+                        {recommendationSummary?.headline || 'Review decision summary'}
+                      </Typography>
+                      <Typography sx={{ color: colors.textMuted, mb: 1.2, lineHeight: 1.5, ...wrappedTextSx }}>
+                        {recommendationSummary?.plain_summary ||
+                          'The simulation completed, but a plain-language summary is not available for this run.'}
+                      </Typography>
+
+                      <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
+                        Main impact: {recommendationSummary?.key_impact || 'Impact summary not available.'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textMuted, mt: 0.6, ...wrappedTextSx }}>
+                        Main risk: {recommendationSummary?.key_risk || 'Risk summary not available.'}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1.4 }}>
+                        Quick Snapshot
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        <Chip label={`Support: ${toDisplayPercent(finalSupportValue)}`} sx={wrappedChipSx} />
+                        <Chip label={`Wellbeing: ${toDisplayPercent(finalHappinessValue)}`} sx={wrappedChipSx} />
+                        <Chip
+                          label={`Income change: ${incomeDelta >= 0 ? '+' : '-'}Rs ${Math.abs(incomeDelta).toFixed(0)}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip label={`Population: ${results.population_stats.total}`} sx={wrappedChipSx} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1 }}>
+                        Why This Decision
+                      </Typography>
+                      {(recommendationSummary?.reasons || []).length > 0 ? (
+                        (recommendationSummary?.reasons || []).slice(0, 3).map((reason, index) => (
+                          <Typography
+                            key={`${reason}-${index}`}
+                            variant="body2"
+                            sx={{ color: colors.textMuted, mb: 0.7, lineHeight: 1.45, ...wrappedTextSx }}
+                          >
+                            {index + 1}. {reason}
+                          </Typography>
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          No plain-language reasons were returned for this run.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.2 }}>
+                  <Card sx={cardSx}>
+                    <CardContent sx={cardContentSx}>
+                      <Typography variant="h6" sx={{ color: colors.text, mb: 1 }}>
+                        Next Actions
+                      </Typography>
+                      {(recommendationSummary?.next_actions || []).length > 0 ? (
+                        (recommendationSummary?.next_actions || []).slice(0, 3).map((action, index) => (
+                          <Typography
+                            key={`${action}-${index}`}
+                            variant="body2"
+                            sx={{ color: colors.textMuted, mb: 0.7, lineHeight: 1.45, ...wrappedTextSx }}
+                          >
+                            {index + 1}. {action}
+                          </Typography>
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: colors.textMuted }}>
+                          No next-step actions were returned for this run.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setShowAdvancedDetails((previous) => !previous)}
+                    sx={{
+                      borderColor: colors.cardBorderHover,
+                      color: colors.text,
+                      borderRadius: 999,
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        borderColor: colors.accentCyan,
+                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      },
+                    }}
+                  >
+                    {showAdvancedDetails ? 'Hide Advanced Details' : 'Show Advanced Details'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Collapse in={showAdvancedDetails} timeout="auto" unmountOnExit={false}>
+
+            <Grid
+              container
+              spacing={{ xs: 2, sm: 2.5, md: 3 }}
+              sx={{
+                '& > .MuiGrid-root': { minWidth: { xs: 0, md: 300 } },
                 '& > *': { alignSelf: 'stretch' },
               }}
             >
@@ -766,10 +1190,10 @@ const Dashboard: React.FC = () => {
                       background: recommendationPalette.bg,
                     }}
                   >
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1.2, mb: 1 }}>
                         <Typography variant="h5" sx={{ color: colors.text }}>
-                          Policy Recommendation
+                          Detailed Recommendation Notes
                         </Typography>
                         <Chip
                           label={recommendationLabel}
@@ -802,18 +1226,18 @@ const Dashboard: React.FC = () => {
 
                       <Typography sx={{ color: colors.textMuted, mb: 1.2, ...wrappedTextSx }}>
                         {results.policy_analysis.recommendation_reasoning ||
-                          'No recommendation narrative was returned for this run.'}
+                          'Detailed recommendation notes were not returned for this run.'}
                       </Typography>
 
                       {(results.policy_analysis.recommendation_key_risks || []).length > 0 && (
                         <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
-                          Risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
+                          Main risks: {(results.policy_analysis.recommendation_key_risks || []).join(' | ')}
                         </Typography>
                       )}
 
                       {(results.policy_analysis.recommendation_conditions || []).length > 0 && (
                         <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                          Conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
+                          Required conditions: {(results.policy_analysis.recommendation_conditions || []).join(' | ')}
                         </Typography>
                       )}
                     </CardContent>
@@ -824,11 +1248,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Happiness Trend
+                        Wellbeing Trend (Happiness)
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {happinessSeries.length > 0 ? (
                           <Line data={happinessData} options={lineChartOptions} />
                         ) : (
@@ -845,24 +1269,35 @@ const Dashboard: React.FC = () => {
               {metaAgentSummary && (
                 <Grid size={{ xs: 12 }}>
                   <motion.div whileHover={{ scale: 1.005, y: -2 }} transition={{ duration: 0.2 }}>
-                    <Card sx={cardSx}>
-                      <CardContent>
+                    <Card
+                      sx={{
+                        ...cardSx,
+                        minHeight: { xs: 'auto', md: 680 },
+                      }}
+                    >
+                      <CardContent
+                        sx={{
+                          ...cardContentSx,
+                          overflowY: { xs: 'visible', md: 'auto' },
+                          maxHeight: { xs: 'none', md: 760 },
+                        }}
+                      >
                         <Typography variant="h5" sx={{ color: colors.text, mb: 1.2 }}>
-                          Governance And Security Meta-Agent
+                          System Checks and Audit
                         </Typography>
                         <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.6, ...wrappedTextSx }}>
-                          This monitor tracks pipeline decisions, flags anomalies, and stores an audit snapshot for each simulation run.
+                          Tracks policy guardrails, unusual data patterns, and a run log for traceability.
                         </Typography>
 
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                          <Chip label={`Status: ${metaAgentSummary.status}`} sx={wrappedChipSx} />
-                          <Chip label={`Events: ${metaAgentSummary.event_count}`} sx={wrappedChipSx} />
-                          <Chip label={`Governance issues: ${governanceIssues.length}`} sx={wrappedChipSx} />
-                          <Chip label={`Anomalies: ${anomalyFlags.length}`} sx={wrappedChipSx} />
+                          <Chip label={`Run status: ${formatLabel(metaAgentSummary.status)}`} sx={wrappedChipSx} />
+                          <Chip label={`Events logged: ${metaAgentSummary.event_count}`} sx={wrappedChipSx} />
+                          <Chip label={`Guardrail alerts: ${governanceIssues.length}`} sx={wrappedChipSx} />
+                          <Chip label={`Data warnings: ${anomalyFlags.length}`} sx={wrappedChipSx} />
                         </Box>
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.8 }}>
-                          Governance Findings
+                          Guardrail Alerts
                         </Typography>
                         {governanceIssues.length > 0 ? (
                           governanceIssues.slice(0, 4).map((issue, index) => {
@@ -871,27 +1306,27 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${issue.code}-${index}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.2,
+                                  mb: 1.5,
+                                  p: { xs: 1.4, sm: 1.7 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
-                                  [{issue.severity.toUpperCase()}] {issue.stage}: {issue.message}
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
+                                  {formatSeverityLabel(issue.severity)} priority - {formatLabel(issue.stage)}: {issue.message}
                                 </Typography>
                               </Box>
                             );
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
-                            No governance issues detected for this run.
+                            No guardrail alerts were detected for this run.
                           </Typography>
                         )}
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                          Anomaly Flags
+                          Data Warnings
                         </Typography>
                         {anomalyFlags.length > 0 ? (
                           anomalyFlags.slice(0, 4).map((flag, index) => {
@@ -900,27 +1335,27 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${flag.code}-${index}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.2,
+                                  mb: 1.5,
+                                  p: { xs: 1.4, sm: 1.7 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
-                                  [{flag.severity.toUpperCase()}] {flag.stage}: {flag.message}
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.5, ...wrappedTextSx }}>
+                                  {formatSeverityLabel(flag.severity)} priority - {formatLabel(flag.stage)}: {flag.message}
                                 </Typography>
                               </Box>
                             );
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.2 }}>
-                            No anomalies detected for this run.
+                            No data warnings were detected for this run.
                           </Typography>
                         )}
 
                         <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                          Audit Trail Preview
+                          Recent Run Log
                         </Typography>
                         {auditTrailPreview.length > 0 ? (
                           auditTrailPreview.slice(-6).map((event, index) => {
@@ -929,15 +1364,15 @@ const Dashboard: React.FC = () => {
                               <Box
                                 key={`${event.stage}-${index}-${event.timestamp}`}
                                 sx={{
-                                  mb: 1,
-                                  p: 1.1,
+                                  mb: 1.4,
+                                  p: { xs: 1.4, sm: 1.6 },
                                   borderRadius: 2,
                                   border: style.border,
                                   backgroundColor: style.bg,
                                 }}
                               >
-                                <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
-                                  {event.stage} - {event.status}
+                                <Typography variant="body2" sx={{ color: colors.text, lineHeight: 1.45, ...wrappedTextSx }}>
+                                  Step: {formatLabel(event.stage)} | Status: {formatLabel(event.status)}
                                   {event.duration_ms != null ? ` (${toDisplayMs(event.duration_ms)})` : ''}
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
@@ -948,7 +1383,7 @@ const Dashboard: React.FC = () => {
                           })
                         ) : (
                           <Typography variant="body2" sx={{ color: colors.textMuted }}>
-                            Audit trail is empty for this run.
+                            No run log entries are available for this simulation.
                           </Typography>
                         )}
                       </CardContent>
@@ -960,11 +1395,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Policy Support Trend
+                        Public Support Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {supportSeries.length > 0 ? (
                           <Line data={supportData} options={lineChartOptions} />
                         ) : (
@@ -981,11 +1416,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Average Income Trend
+                        Income Trend
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {incomeSeries.length > 0 ? (
                           <Line data={incomeData} options={lineChartOptions} />
                         ) : (
@@ -1002,11 +1437,11 @@ const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Occupation Distribution
+                        Jobs In Population Sample
                       </Typography>
-                      <Box sx={{ height: { xs: 220, sm: 260, md: 300 }, overflow: 'hidden' }}>
+                      <Box sx={chartBoxSx}>
                         {Object.keys(results.population_stats.occupations || {}).length > 0 ? (
                           <Pie data={occupationData} options={pieChartOptions} />
                         ) : (
@@ -1020,108 +1455,154 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Policy Analysis
+                        Policy Parsing Details
                       </Typography>
                       <Typography sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.summary}
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Domain: ${results.policy_analysis.domain}`} sx={wrappedChipSx} />
-                        <Chip label={`Mechanism: ${results.policy_analysis.mechanism}`} sx={wrappedChipSx} />
-                        <Chip label={`Parser: ${results.policy_analysis.parsed_by}`} sx={wrappedChipSx} />
-                        <Chip label={`Time effect: ${results.policy_analysis.time_effect}`} sx={wrappedChipSx} />
+                        <Chip label={`Policy area: ${results.policy_analysis.domain}`} sx={wrappedChipSx} />
+                        <Chip label={`Delivery method: ${results.policy_analysis.mechanism}`} sx={wrappedChipSx} />
+                        <Chip label={`Parsing method: ${results.policy_analysis.parsed_by}`} sx={wrappedChipSx} />
+                        <Chip label={`Expected timing: ${results.policy_analysis.time_effect}`} sx={wrappedChipSx} />
                       </Box>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
-                        Affected Groups
+                        Groups Affected Most
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.5, ...wrappedTextSx }}>
                         {results.policy_analysis.affected_groups.length > 0
                           ? results.policy_analysis.affected_groups.join(', ')
-                          : 'No explicit groups extracted in this run.'}
+                          : 'No clearly affected groups were identified in this run.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5 }}>
-                        Key Attributes
+                        Signals Used For Simulation
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {results.policy_analysis.key_attributes.length > 0
                           ? results.policy_analysis.key_attributes.join(', ')
-                          : 'No key attributes extracted in this run.'}
+                          : 'No key simulation signals were extracted in this run.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
-                        Potential Winners
+                        Groups Likely To Benefit
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_winners || []).length > 0
                           ? (results.policy_analysis.potential_winners || []).join(', ')
-                          : 'No clear winner groups identified.'}
+                          : 'No clear benefit groups were identified.'}
                       </Typography>
 
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.5 }}>
-                        Potential Losers
+                        Groups Likely To Face Downside
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                         {(results.policy_analysis.potential_losers || []).length > 0
                           ? (results.policy_analysis.potential_losers || []).join(', ')
-                          : 'No explicit loser groups identified.'}
+                          : 'No clear downside groups were identified.'}
                       </Typography>
                     </CardContent>
                   </Card>
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
-                  <Card sx={cardSx}>
-                    <CardContent>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      minHeight: { xs: 'auto', md: 430 },
+                    }}
+                  >
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Pipeline Diagnostics
+                        Technical Run Details
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        <Chip label={`Mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
-                        {results.pipeline.run_id && <Chip label={`Run: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
-                        <Chip label={`Population: ${results.pipeline.population_size}`} sx={wrappedChipSx} />
-                        <Chip label={`Sample: ${results.pipeline.sample_size}`} sx={wrappedChipSx} />
-                        <Chip label={`Steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
-                        <Chip label={`Epochs: ${results.pipeline.training_epochs}`} sx={wrappedChipSx} />
+                        <Chip label={`LLM mode: ${results.pipeline.llm_mode}`} sx={wrappedChipSx} />
+                        {results.pipeline.run_id && <Chip label={`Run ID: ${results.pipeline.run_id.slice(0, 8)}`} sx={wrappedChipSx} />}
+                        <Chip
+                          label={`Population used: ${results.pipeline.population_size}${results.pipeline.requested_population_size != null ? ` (requested ${results.pipeline.requested_population_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip
+                          label={`Citizens sampled: ${results.pipeline.sample_size}${results.pipeline.requested_sample_size != null ? ` (requested ${results.pipeline.requested_sample_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip label={`Timeline steps: ${results.pipeline.steps}`} sx={wrappedChipSx} />
+                        <Chip
+                          label={`Training cycles: ${results.pipeline.training_epochs}${results.pipeline.requested_training_epochs != null ? ` (requested ${results.pipeline.requested_training_epochs})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        <Chip
+                          label={`Batch size: ${results.pipeline.batch_size}${results.pipeline.requested_batch_size != null ? ` (requested ${results.pipeline.requested_batch_size})` : ''}`}
+                          sx={wrappedChipSx}
+                        />
+                        {results.pipeline.random_seed != null && (
+                          <Chip label={`Seed: ${results.pipeline.random_seed}`} sx={wrappedChipSx} />
+                        )}
                         {results.pipeline.sample_strategy && (
                           <Chip label={`Sampling: ${results.pipeline.sample_strategy}`} sx={wrappedChipSx} />
                         )}
                       </Box>
+
+                      {results.pipeline.sample_size_capped && (
+                        <Typography variant="body2" sx={{ color: '#fbbf24', mb: 0.8, ...wrappedTextSx }}>
+                          Requested sample exceeded available population, so the sample size was reduced.
+                        </Typography>
+                      )}
+
+                      {results.pipeline.sampling_diagnostics?.consistency_mae != null && (
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
+                          Reaction consistency check (lower is better): {results.pipeline.sampling_diagnostics.consistency_mae.toFixed(4)}
+                          {' '}(sampled {results.pipeline.sampling_diagnostics.consistency_sample_size} records)
+                        </Typography>
+                      )}
+
                       <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.8, ...wrappedTextSx }}>
                         Total runtime: {toDisplayMs(results.pipeline.timings_ms.total_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Parse: {toDisplayMs(results.pipeline.timings_ms.parse_policy_ms)} | Mapping: {toDisplayMs(results.pipeline.timings_ms.map_attributes_ms)}
+                        Policy parsing: {toDisplayMs(results.pipeline.timings_ms.parse_policy_ms)} | Attribute mapping: {toDisplayMs(results.pipeline.timings_ms.map_attributes_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Population: {toDisplayMs(results.pipeline.timings_ms.population_generation_ms)} | LLM sample: {toDisplayMs(results.pipeline.timings_ms.llm_sampling_ms)}
+                        Population generation: {toDisplayMs(results.pipeline.timings_ms.population_generation_ms)} | LLM sampling: {toDisplayMs(results.pipeline.timings_ms.llm_sampling_ms)}
                       </Typography>
                       <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                        Training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
+                        Model training: {toDisplayMs(results.pipeline.timings_ms.model_training_ms)} | Timeline simulation: {toDisplayMs(results.pipeline.timings_ms.simulation_ms)}
                       </Typography>
 
                       {results.pipeline.model_validation && (
                         <>
                           <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.4, mb: 0.6 }}>
-                            Model Validation
+                            Model Quality Checks
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Samples: total {results.pipeline.model_validation.samples_total}, train {results.pipeline.model_validation.samples_train}, val {results.pipeline.model_validation.samples_validation}
+                            Samples used: total {results.pipeline.model_validation.samples_total}, training {results.pipeline.model_validation.samples_train}, validation {results.pipeline.model_validation.samples_validation}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Train loss: {results.pipeline.model_validation.train_loss.toFixed(4)} | Train MAE: {results.pipeline.model_validation.train_mae.toFixed(4)}
+                            Training error (loss): {results.pipeline.model_validation.train_loss.toFixed(4)} | Training error (MAE): {results.pipeline.model_validation.train_mae.toFixed(4)}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            Val loss: {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Val MAE: {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
+                            Validation error (loss): {results.pipeline.model_validation.validation_loss != null ? results.pipeline.model_validation.validation_loss.toFixed(4) : 'n/a'} | Validation error (MAE): {results.pipeline.model_validation.validation_mae != null ? results.pipeline.model_validation.validation_mae.toFixed(4) : 'n/a'}
                           </Typography>
+                          {results.pipeline.model_validation.early_stopped != null && (
+                            <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
+                              Early stopping: {results.pipeline.model_validation.early_stopped ? 'yes' : 'no'}
+                              {results.pipeline.model_validation.best_epoch != null
+                                ? ` | Best epoch: ${results.pipeline.model_validation.best_epoch}`
+                                : ''}
+                              {results.pipeline.model_validation.train_validation_mae_gap != null
+                                ? ` | Train-Val MAE gap: ${results.pipeline.model_validation.train_validation_mae_gap.toFixed(4)}`
+                                : ''}
+                            </Typography>
+                          )}
                         </>
                       )}
                     </CardContent>
@@ -1129,12 +1610,12 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
                   <Card sx={cardSx}>
-                    <CardContent>
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Population Stats
+                        Generated Population Summary
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                         <Chip label={`Total: ${results.population_stats.total}`} sx={wrappedChipSx} />
@@ -1142,7 +1623,7 @@ const Dashboard: React.FC = () => {
                         <Chip label={`Income end: Rs ${results.population_stats.avg_income_end.toFixed(0)}`} sx={wrappedChipSx} />
                       </Box>
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
-                        Top castes in generated population
+                        Top caste groups in generated population
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                         {topCasteStats.length > 0 ? (
@@ -1168,12 +1649,17 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={{ xs: 12 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
-                  <Card sx={cardSx}>
-                    <CardContent>
+                  <Card
+                    sx={{
+                      ...cardSx,
+                      minHeight: { xs: 'auto', md: 420 },
+                    }}
+                  >
+                    <CardContent sx={cardContentSx}>
                       <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Citizen Reaction Preview
+                        Sample Citizen Reactions
                       </Typography>
                       {(results.reaction_preview || []).slice(0, 3).map((reaction) => (
                         <Box
@@ -1187,10 +1673,10 @@ const Dashboard: React.FC = () => {
                           }}
                         >
                           <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5, ...wrappedTextSx }}>
-                            Citizen #{reaction.citizen_id} - {reaction.occupation} ({reaction.location})
+                            Citizen #{reaction.citizen_id} | {reaction.occupation} ({reaction.location})
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4, ...wrappedTextSx }}>
-                            Happiness: {reaction.happiness_change.toFixed(3)} | Support: {reaction.support_change.toFixed(3)} | Income: Rs {reaction.income_change.toFixed(0)}
+                            Happiness change: {reaction.happiness_change.toFixed(3)} | Support change: {reaction.support_change.toFixed(3)} | Income change: Rs {reaction.income_change.toFixed(0)}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             {reaction.diary_entry}
@@ -1202,6 +1688,7 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
             </Grid>
+            </Collapse>
           </motion.div>
         )}
       </Container>
