@@ -157,7 +157,7 @@ def create_training_data(population, llm_results, policy=None):
 class ReactionModel(nn.Module):
     """
     Lightweight feedforward network:
-        9 inputs -> 64 -> 32 -> 16 -> 3 outputs
+        9 inputs -> 16 -> 8 -> 3 outputs
 
     Outputs:
         [0] happiness_delta  — interpreted as [-1, 1] score
@@ -169,20 +169,17 @@ class ReactionModel(nn.Module):
         super().__init__()
 
         self.network = nn.Sequential(
-            nn.Linear(input_size, 64),
-            nn.BatchNorm1d(64),
+            nn.Linear(input_size, 16),
+            nn.BatchNorm1d(16),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.3),
 
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
+            nn.Linear(16, 8),
+            nn.BatchNorm1d(8),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.3),
 
-            nn.Linear(32, 16),
-            nn.ReLU(),
-
-            nn.Linear(16, 3),
+            nn.Linear(8, 3),
         )
 
     def forward(self, x):
