@@ -1,25 +1,34 @@
-import torch
-import numpy as np
+"""
+reaction_predictor.py — Inference layer for the Random Forest surrogate model.
+
+All PyTorch dependencies have been removed.  The model is now a scikit-learn
+RandomForestRegressor, so inference is a single model.predict() call on a
+normalised NumPy matrix.
+
+Public API (unchanged):
+    predict_batch(model, population, mean, std, policy_encoding)
+        → List[Tuple[float, float, float]]
+
+    predict_reaction(model, citizen, mean, std, policy_encoding)
+        → Tuple[float, float, float]
+"""
+
 import logging
+import numpy as np
 from ai_models.training_model import apply_normalization
 
 logger = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Income scaling
 # ---------------------------------------------------------------------------
-# happiness_delta and support_delta live in [-1, 1] — they are scores.
-# income_delta is a real rupee change — it should NOT be clamped to [-1, 1].
-# The model outputs a raw float for income; we scale it to a realistic range.
-#
-# INCOME_SCALE: multiply the raw model output by this to get rupees.
-# The LLM generates income_change directly in rupees (e.g., -5000 to +20000).
-# The neural network learns to predict in that same range.
-# So INCOME_SCALE should be 1.0 (no additional scaling).
+# happiness_delta and support_delta live in [-1, 1].
+# income_delta is a real rupee change — NOT clamped.
+# The RF learns to predict in the same rupee range as the LLM training labels,
+# so INCOME_SCALE stays 1.0 (no additional scaling needed).
 # ---------------------------------------------------------------------------
 
-INCOME_SCALE = 1.0  # The model already outputs values in rupees
+INCOME_SCALE = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -30,32 +39,28 @@ def predict_reaction(model, citizen, mean, std, policy_encoding):
     """
     Predict reaction for a single citizen.
 
-    Returns a tuple: (happiness_delta, support_delta, income_delta)
+    Returns:
+        (happiness_delta, support_delta, income_delta)
         happiness_delta : float in [-1, 1]
         support_delta   : float in [-1, 1]
         income_delta    : float in rupees (can be large positive or negative)
     """
     features = _citizen_to_features(citizen, policy_encoding)
     features_norm = apply_normalization([features], mean, std)
-
-    model.eval()
-    with torch.no_grad():
-        x = torch.tensor(features_norm, dtype=torch.float32)
-        output = model(x).numpy()[0]
-
+    output = model.predict(features_norm)[0]   # shape (3,)
     return _scale_output(output)
 
 
 # ---------------------------------------------------------------------------
-# Batch prediction
+# Batch prediction (primary call path — used by simulation_engine)
 # ---------------------------------------------------------------------------
 
 def predict_batch(model, population, mean, std, policy_encoding):
     """
-    Predict reactions for an entire population in one forward pass.
-    Much faster than calling predict_reaction() in a loop.
+    Predict reactions for an entire population in one vectorised call.
 
-    Returns a list of tuples: [(happiness_delta, support_delta, income_delta), ...]
+    Returns:
+        List of tuples [(happiness_delta, support_delta, income_delta), ...]
     """
     if not population:
         logger.warning("predict_batch called with empty population.")
@@ -66,20 +71,20 @@ def predict_batch(model, population, mean, std, policy_encoding):
         _citizen_to_features(c, policy_encoding) for c in population
     ]
 
-    # Apply training normalization — never recompute from this data
+    # Apply training normalisation — never recompute from this data
     features_norm = apply_normalization(feature_matrix, mean, std)
 
-    model.eval()
-    with torch.no_grad():
-        x = torch.tensor(features_norm, dtype=torch.float32)
-        outputs = model(x).numpy()
+    # Single batch inference — RF processes all rows simultaneously
+    outputs = model.predict(features_norm)          # shape (n, 3)
 
     results = [_scale_output(row) for row in outputs]
 
     logger.debug(
-        f"Batch prediction complete for {len(population)} citizens. "
-        f"Avg happiness_delta: {np.mean([r[0] for r in results]):.3f}, "
-        f"Avg income_delta: {np.mean([r[2] for r in results]):,.0f}"
+        "Batch prediction complete for %d citizens. "
+        "Avg happiness_delta: %.3f  Avg income_delta: %.0f",
+        len(population),
+        np.mean([r[0] for r in results]),
+        np.mean([r[2] for r in results]),
     )
 
     return results
@@ -93,6 +98,11 @@ def _citizen_to_features(citizen, policy_encoding):
     """
     Convert a citizen object into a 9-element feature vector.
     Must match the feature order used in create_training_data().
+
+    Feature order:
+        age, income, risk_tolerance, openness, political_leaning,
+        policy_domain, policy_mechanism, policy_time_effect,
+        affected_group_intensity
     """
     policy_vector = _normalize_policy_vector(policy_encoding)
 
@@ -109,7 +119,7 @@ def _citizen_to_features(citizen, policy_encoding):
 def _normalize_policy_vector(policy_encoding):
     """Ensure predictor always receives a 4-value policy feature vector."""
     if isinstance(policy_encoding, (list, tuple, np.ndarray)):
-        policy_vector = [float(value) for value in policy_encoding]
+        policy_vector = [float(v) for v in policy_encoding]
     elif policy_encoding is None:
         policy_vector = []
     else:

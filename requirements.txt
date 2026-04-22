@@ -1,7 +1,9 @@
 streamlit
 pandas
 numpy
-torch
+scikit-learn
+fastapi
+uvicorn[standard]
 networkx
 python-dotenv
 google-genai
@@ -10,3 +12,5 @@ dash
 dash-bootstrap-components
 groq
 gunicorn
+# torch — only needed if you reintroduce a PyTorch model; safe to remove
+# torch
