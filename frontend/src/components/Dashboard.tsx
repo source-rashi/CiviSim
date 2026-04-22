@@ -229,9 +229,9 @@ const formatSeverityLabel = (severity: string) => {
 };
 
 const tuningLimits = {
-  populationSize: { min: 200, max: 20000, defaultValue: 2000 },
-  sampleSize: { min: 20, max: 2000, defaultValue: 800 },
-  simulationSteps: { min: 1, max: 80, defaultValue: 3 },
+  populationSize: { min: 200, max: 20000, defaultValue: 1000 },
+  sampleSize: { min: 10, max: 500, defaultValue: 50 },
+  simulationSteps: { min: 1, max: 80, defaultValue: 5 },
   trainingEpochs: { min: 20, max: 500, defaultValue: 40 },
 };
 
@@ -251,9 +251,9 @@ const Dashboard: React.FC = () => {
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
   const [recentRuns, setRecentRuns] = useState<RecentRun[]>([]);
 
-  const [populationSize, setPopulationSize] = useState(2000);
-  const [sampleSize, setSampleSize] = useState(800);
-  const [simulationSteps, setSimulationSteps] = useState(3);
+  const [populationSize, setPopulationSize] = useState(1000);
+  const [sampleSize, setSampleSize] = useState(50);
+  const [simulationSteps, setSimulationSteps] = useState(5);
   const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -855,8 +855,11 @@ const Dashboard: React.FC = () => {
               Policy length: {policyCharacterCount} characters (longer policies usually produce better targeted simulation)
             </Typography>
 
-            <Typography variant="h6" sx={{ color: colors.text, mb: 1.5 }}>
+            <Typography variant="h6" sx={{ color: colors.text, mb: 1 }}>
               Simulation Tuning
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#fbbf24', mb: 2, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              ⚠️ Groq free tier limit: 12,000 tokens/min. Keep <strong style={{ margin: '0 4px' }}>LLM Sample ≤ 80</strong> to avoid timeouts. Upgrade Groq for larger samples.
             </Typography>
             <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3 }}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
