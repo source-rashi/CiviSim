@@ -498,6 +498,7 @@ const Dashboard: React.FC = () => {
     [supportSeries]
   );
 
+  // incomeData available for future income trend chart
   const incomeData = useMemo(
     () => ({
       labels: buildStepLabels(incomeSeries.length),
@@ -515,6 +516,7 @@ const Dashboard: React.FC = () => {
     }),
     [incomeSeries]
   );
+  void incomeData; // referenced in future income trend card
 
   const occupationData = useMemo(
     () => ({
@@ -646,28 +648,27 @@ const Dashboard: React.FC = () => {
     : 0;
 
   const cardSx = {
-    background: colors.cardBg,
-    backdropFilter: 'blur(14px)',
+    background: 'rgba(27, 32, 41, 0.72)',
+    backdropFilter: 'blur(24px) saturate(1.4)',
     borderRadius: 4,
-    border: `1px solid ${colors.cardBorder}`,
+    border: '1px solid rgba(141, 213, 255, 0.10)',
     overflow: 'hidden',
     minWidth: 0,
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 20px 40px rgba(2, 8, 23, 0.35)',
-    transition: 'transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease',
+    boxShadow: '0 20px 40px rgba(9, 14, 23, 0.5)',
+    transition: 'transform 0.25s ease, border-color 0.28s ease, box-shadow 0.28s ease',
     '&:hover': {
-      borderColor: colors.cardBorderHover,
-      boxShadow: '0 24px 48px rgba(14, 165, 233, 0.22)',
+      borderColor: 'rgba(56, 189, 248, 0.30)',
+      boxShadow: '0 0 44px rgba(56, 189, 248, 0.10)',
+      transform: 'translateY(-2px)',
     },
   };
 
   const cardContentSx = {
-    p: { xs: 1.8, sm: 2.2, md: 2.6 },
-    '&:last-child': {
-      pb: { xs: 1.8, sm: 2.2, md: 2.6 },
-    },
+    p: { xs: 2, sm: 2.5, md: 3 },
+    '&:last-child': { pb: { xs: 2, sm: 2.5, md: 3 } },
   };
 
   const chartBoxSx = {
@@ -679,22 +680,16 @@ const Dashboard: React.FC = () => {
 
   const tuningFieldSx = {
     '& .MuiOutlinedInput-root': {
-      backgroundColor: 'rgba(12, 24, 42, 0.68)',
+      backgroundColor: 'rgba(9, 14, 23, 0.75)',
       borderRadius: 2,
       color: colors.text,
-      '& fieldset': {
-        borderColor: colors.cardBorder,
-      },
-      '&:hover fieldset': {
-        borderColor: colors.accentBlue,
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: colors.accentCyan,
-      },
+      fontFamily: '"Inter", sans-serif',
+      '& fieldset': { borderColor: 'rgba(141, 213, 255, 0.14)' },
+      '&:hover fieldset': { borderColor: 'rgba(56, 189, 248, 0.4)' },
+      '&.Mui-focused fieldset': { borderColor: '#38bdf8', boxShadow: '0 0 0 3px rgba(56,189,248,0.12)' },
     },
-    '& .MuiInputLabel-root': {
-      color: colors.textMuted,
-    },
+    '& .MuiInputLabel-root': { color: colors.textMuted },
+    '& .MuiFormHelperText-root': { color: colors.textMuted },
   };
 
   const wrappedTextSx = {
@@ -707,6 +702,10 @@ const Dashboard: React.FC = () => {
     color: colors.text,
     maxWidth: '100%',
     height: 'auto',
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    border: '1px solid rgba(56, 189, 248, 0.18)',
+    fontFamily: '"Space Grotesk", monospace',
+    fontSize: '0.78rem',
     '& .MuiChip-label': {
       display: 'block',
       whiteSpace: 'normal',
@@ -718,81 +717,91 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        overflowX: 'hidden',
-        background:
-          'radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.24) 0%, rgba(7, 11, 18, 0) 35%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.22) 0%, rgba(7, 11, 18, 0) 42%), linear-gradient(160deg, #05070d 0%, #0a1220 55%, #060a13 100%)',
-        py: { xs: 3, sm: 4, md: 5 },
-      }}
-    >
+    <Box sx={{ minHeight: '100vh', overflowX: 'hidden', position: 'relative', zIndex: 1, py: { xs: 3, sm: 4, md: 5 } }}>
       <Container maxWidth="xl" sx={{ overflowX: 'hidden', px: { xs: 1.4, sm: 2.3, md: 3 } }}>
-        <motion.div
-          initial={{ opacity: 0, y: 34 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: 'easeOut' }}
-        >
+        <motion.div initial={{ opacity: 0, y: 34 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: 'easeOut' }}>
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 2.5, sm: 3, md: 4 },
+              p: { xs: 2.5, sm: 3.5, md: 5 },
               mb: 4,
-              background: 'linear-gradient(135deg, rgba(18, 32, 56, 0.9) 0%, rgba(10, 18, 34, 0.88) 100%)',
-              backdropFilter: 'blur(12px)',
-              borderRadius: 4,
-              border: `1px solid ${colors.cardBorder}`,
-              boxShadow: '0 20px 50px rgba(2, 8, 23, 0.44)',
+              background: 'rgba(27, 32, 41, 0.72)',
+              backdropFilter: 'blur(28px) saturate(1.5)',
+              borderRadius: 5,
+              border: '1px solid rgba(141, 213, 255, 0.12)',
+              boxShadow: '0 30px 60px rgba(9, 14, 23, 0.55)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: -120, left: -80,
+                width: 420, height: 420,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(56,189,248,0.09) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: -100, right: -60,
+                width: 320, height: 320,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(5,102,217,0.08) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              },
             }}
           >
-            <Typography
-              variant="h2"
-              component="h1"
-              gutterBottom
-              align="center"
-              sx={{
-                color: colors.text,
-                maxWidth: { xs: '100%', md: 920 },
-                mx: 'auto',
-                lineHeight: { xs: 1.12, md: 1.16 },
-                fontSize: { xs: '1.95rem', sm: '2.4rem', md: '3.1rem' },
-                overflowWrap: 'anywhere',
-              }}
-            >
-              CiviSim Dashboard
-            </Typography>
-            <Typography
-              variant="h5"
-              align="center"
-              sx={{
-                color: colors.textMuted,
-                mb: 3,
-                maxWidth: { xs: '100%', md: 940 },
-                mx: 'auto',
-                lineHeight: 1.35,
-                fontSize: { xs: '1rem', sm: '1.15rem', md: '1.45rem' },
-                overflowWrap: 'anywhere',
-              }}
-            >
-              Deep policy simulation with LLM sampling, model training, and timeline dynamics
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-              <Avatar
-                aria-label="CiviSim icon"
-                sx={{
-                  width: { xs: 68, sm: 80 },
-                  height: { xs: 68, sm: 80 },
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #38bdf8 100%)',
-                  boxShadow: '0 14px 32px rgba(56, 189, 248, 0.34)',
-                }}
-              >
-                <Box component="svg" viewBox="0 0 24 24" sx={{ width: { xs: 32, sm: 38 }, height: { xs: 32, sm: 38 } }}>
-                  <path
-                    d="M12 2.4 4.3 6.8v10.4L12 21.6l7.7-4.4V6.8L12 2.4Zm0 2.6 5.3 3-5.3 3-5.3-3 5.3-3Zm-6 5.4 5 2.9v5.6l-5-2.9v-5.6Zm12 0V16l-5 2.9v-5.6l5-2.9Z"
-                    fill="#071423"
-                  />
+            {/* ── Hero header ─────────────────────────────── */}
+            <Box sx={{ textAlign: 'center', mb: 4, position: 'relative', zIndex: 1 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
+                <Avatar
+                  aria-label="CiviSim icon"
+                  sx={{
+                    width: { xs: 60, sm: 72 }, height: { xs: 60, sm: 72 },
+                    background: 'linear-gradient(135deg, #0566d9 0%, #38bdf8 100%)',
+                    boxShadow: '0 0 32px rgba(56,189,248,0.45), 0 8px 24px rgba(5,102,217,0.35)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box component="svg" viewBox="0 0 24 24" sx={{ width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 } }}>
+                    <path d="M12 2.4 4.3 6.8v10.4L12 21.6l7.7-4.4V6.8L12 2.4Zm0 2.6 5.3 3-5.3 3-5.3-3 5.3-3Zm-6 5.4 5 2.9v5.6l-5-2.9v-5.6Zm12 0V16l-5 2.9v-5.6l5-2.9Z" fill="#f0faff" />
+                  </Box>
+                </Avatar>
+                <Box>
+                  <Typography
+                    variant="h2" component="h1" align="left"
+                    sx={{
+                      fontWeight: 800, letterSpacing: '-0.03em',
+                      fontSize: { xs: '2rem', sm: '2.6rem', md: '3.4rem' },
+                      lineHeight: 1.05,
+                      background: 'linear-gradient(135deg, #c4e7ff 0%, #38bdf8 45%, #adc6ff 100%)',
+                      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                    }}
+                  >
+                    CiviSim
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
+                    <Typography sx={{ fontFamily: '"Space Grotesk", monospace', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7bd0ff' }}>
+                      Governance Intelligence Platform
+                    </Typography>
+                  </Box>
                 </Box>
-              </Avatar>
+              </Box>
+              <Typography
+                variant="h5" align="center"
+                sx={{ color: '#bdc8d1', mb: 2, maxWidth: 680, mx: 'auto', lineHeight: 1.45, fontSize: { xs: '0.92rem', sm: '1.05rem', md: '1.2rem' } }}
+              >
+                AI-powered policy simulation with LLM citizen sampling, surrogate model training &amp; Markov chain dynamics
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {(['Deep Simulation', 'LLM Reactions', 'ML Model', 'Governance Audit'] as const).map((tag) => (
+                  <Box key={tag} sx={{ px: 1.4, py: 0.35, borderRadius: 999, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', fontFamily: '"Space Grotesk", monospace', fontSize: '0.66rem', fontWeight: 600, letterSpacing: '0.09em', color: '#7bd0ff', textTransform: 'uppercase' }}>
+                    {tag}
+                  </Box>
+                ))}
+              </Box>
             </Box>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch', gap: 1, mb: 2.5 }}>
@@ -1078,29 +1087,16 @@ const Dashboard: React.FC = () => {
                         </Typography>
                         <Chip
                           label={recommendationLabel}
-                          sx={{
-                            fontWeight: 700,
-                            border: `1px solid ${recommendationPalette.border}`,
-                            backgroundColor: recommendationPalette.chipBg,
-                            ...wrappedChipSx,
-                          }}
+                          sx={{ ...wrappedChipSx, fontWeight: 700, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                         />
                         <Chip
                           label={`Confidence: ${((recommendationSummary?.confidence ?? 0.5) * 100).toFixed(0)}%`}
-                          sx={{
-                            border: `1px solid ${recommendationPalette.border}`,
-                            backgroundColor: recommendationPalette.chipBg,
-                            ...wrappedChipSx,
-                          }}
+                          sx={{ ...wrappedChipSx, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                         />
                         {recommendationSummary?.source && (
                           <Chip
                             label={`Source: ${recommendationSummary.source}`}
-                            sx={{
-                              border: `1px solid ${recommendationPalette.border}`,
-                              backgroundColor: recommendationPalette.chipBg,
-                              ...wrappedChipSx,
-                            }}
+                            sx={{ ...wrappedChipSx, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                           />
                         )}
                       </Box>
@@ -1248,29 +1244,16 @@ const Dashboard: React.FC = () => {
                         </Typography>
                         <Chip
                           label={recommendationLabel}
-                          sx={{
-                            fontWeight: 700,
-                            border: `1px solid ${recommendationPalette.border}`,
-                            backgroundColor: recommendationPalette.chipBg,
-                            ...wrappedChipSx,
-                          }}
+                          sx={{ ...wrappedChipSx, fontWeight: 700, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                         />
                         <Chip
                           label={`Confidence: ${((results.policy_analysis.recommendation_confidence ?? 0.5) * 100).toFixed(0)}%`}
-                          sx={{
-                            border: `1px solid ${recommendationPalette.border}`,
-                            backgroundColor: recommendationPalette.chipBg,
-                            ...wrappedChipSx,
-                          }}
+                          sx={{ ...wrappedChipSx, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                         />
                         {results.policy_analysis.recommendation_source && (
                           <Chip
                             label={`Source: ${results.policy_analysis.recommendation_source}`}
-                            sx={{
-                              border: `1px solid ${recommendationPalette.border}`,
-                              backgroundColor: recommendationPalette.chipBg,
-                              ...wrappedChipSx,
-                            }}
+                            sx={{ ...wrappedChipSx, border: `1px solid ${recommendationPalette.border}`, backgroundColor: recommendationPalette.chipBg }}
                           />
                         )}
                       </Box>
@@ -1660,11 +1643,7 @@ const Dashboard: React.FC = () => {
                             <Chip
                               key={caste}
                               label={`${caste.toUpperCase()}: ${count}`}
-                              sx={{
-                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                border: '1px solid rgba(59, 130, 246, 0.35)',
-                                ...wrappedChipSx,
-                              }}
+                              sx={{ ...wrappedChipSx, backgroundColor: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.35)' }}
                             />
                           ))
                         ) : (
@@ -1687,31 +1666,39 @@ const Dashboard: React.FC = () => {
                     }}
                   >
                     <CardContent sx={cardContentSx}>
-                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Sample Citizen Reactions
-                      </Typography>
-                      {(results.reaction_preview || []).slice(0, 3).map((reaction) => (
-                        <Box
-                          key={reaction.citizen_id}
-                          sx={{
-                            mb: 1.5,
-                            p: 1.5,
-                            borderRadius: 2,
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                            backgroundColor: 'rgba(12, 24, 42, 0.55)',
-                          }}
-                        >
-                          <Typography variant="subtitle2" sx={{ color: colors.text, mb: 0.5, ...wrappedTextSx }}>
-                            Citizen #{reaction.citizen_id} | {reaction.occupation} ({reaction.location})
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4, ...wrappedTextSx }}>
-                            Happiness change: {reaction.happiness_change.toFixed(3)} | Support change: {reaction.support_change.toFixed(3)}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
-                            {reaction.diary_entry}
-                          </Typography>
-                        </Box>
-                      ))}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+                        <Typography variant="h5" sx={{ color: colors.text }}>Simulated Voices</Typography>
+                        <Box sx={{ px: 1.2, py: 0.3, borderRadius: 999, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', fontFamily: '"Space Grotesk", monospace', fontSize: '0.65rem', color: '#7bd0ff', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI Generated</Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {(results.reaction_preview || []).slice(0, 4).map((reaction) => {
+                        const initials = reaction.occupation.slice(0,2).toUpperCase();
+                        const hColor = reaction.happiness_change >= 0 ? '#4ade80' : '#f87171';
+                        const sColor = reaction.support_change >= 0 ? '#38bdf8' : '#fb923c';
+                        return (
+                          <Box
+                            key={reaction.citizen_id}
+                            sx={{ p: 2, borderRadius: 3, background: 'rgba(37,42,52,0.75)', border: '1px solid rgba(141,213,255,0.08)', transition: 'border-color 0.25s ease, transform 0.2s ease', '&:hover': { borderColor: 'rgba(56,189,248,0.24)', transform: 'translateY(-2px)' } }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                              <Avatar sx={{ width: 40, height: 40, background: 'linear-gradient(135deg, #0566d9, #38bdf8)', fontSize: '0.75rem', fontWeight: 700, fontFamily: '"Space Grotesk", monospace', flexShrink: 0 }}>{initials}</Avatar>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.8, mb: 0.5 }}>
+                                  <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: colors.text, ...wrappedTextSx }}>{reaction.occupation}</Typography>
+                                  <Typography sx={{ fontSize: '0.72rem', color: colors.textMuted, fontFamily: '"Space Grotesk", monospace' }}>#{reaction.citizen_id} · {reaction.location}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+                                  <Typography sx={{ fontSize: '0.72rem', fontFamily: '"Space Grotesk", monospace', fontWeight: 600, color: hColor }}>😊 {reaction.happiness_change >= 0 ? '+' : ''}{reaction.happiness_change.toFixed(3)}</Typography>
+                                  <Typography sx={{ fontSize: '0.72rem', fontFamily: '"Space Grotesk", monospace', fontWeight: 600, color: sColor }}>📊 {reaction.support_change >= 0 ? '+' : ''}{reaction.support_change.toFixed(3)}</Typography>
+                                  <Typography sx={{ fontSize: '0.72rem', fontFamily: '"Space Grotesk", monospace', fontWeight: 600, color: '#fbbf24' }}>💰 {reaction.income_change >= 0 ? '+' : ''}₹{reaction.income_change.toFixed(0)}</Typography>
+                                </Box>
+                                <Typography variant="body2" sx={{ color: '#bdc8d1', lineHeight: 1.55, fontStyle: 'italic', ...wrappedTextSx }}>"{reaction.diary_entry}"</Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                      </Box>
                     </CardContent>
                   </Card>
                 </motion.div>

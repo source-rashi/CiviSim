@@ -42,15 +42,6 @@ const theme = createTheme({
           borderRadius: 999,
           transition: 'transform 0.2s ease, box-shadow 0.25s ease, background-color 0.2s ease',
         },
-        containedPrimary: {
-          background: 'linear-gradient(135deg, #38bdf8 0%, #0566d9 100%)',
-          boxShadow: '0 8px 28px rgba(56, 189, 248, 0.28)',
-          '&:hover': {
-            background: 'linear-gradient(135deg, #7bd0ff 0%, #0566d9 100%)',
-            boxShadow: '0 14px 40px rgba(56, 189, 248, 0.42)',
-            transform: 'translateY(-2px)',
-          },
-        },
       },
     },
     MuiOutlinedInput: {
