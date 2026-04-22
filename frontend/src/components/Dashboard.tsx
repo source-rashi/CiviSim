@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Alert,
@@ -192,6 +192,21 @@ interface SimulationResults {
   meta_agent?: MetaAgentSummary;
 }
 
+interface RecentRun {
+  run_id: string;
+  created_at: string;
+  policy_text: string;
+  domain: string;
+  mechanism: string;
+  final_happiness: number;
+  final_support: number;
+  avg_income_end: number;
+  recommendation: string;
+  population_size: number;
+  sample_size: number;
+  steps: number;
+}
+
 const buildStepLabels = (seriesLength: number) =>
   Array.from({ length: Math.max(seriesLength, 1) }, (_value, index) => `Step ${index + 1}`);
 
@@ -215,8 +230,8 @@ const formatSeverityLabel = (severity: string) => {
 
 const tuningLimits = {
   populationSize: { min: 200, max: 20000, defaultValue: 2000 },
-  sampleSize: { min: 20, max: 600, defaultValue: 100 },
-  simulationSteps: { min: 3, max: 80, defaultValue: 12 },
+  sampleSize: { min: 20, max: 2000, defaultValue: 800 },
+  simulationSteps: { min: 1, max: 80, defaultValue: 3 },
   trainingEpochs: { min: 20, max: 500, defaultValue: 40 },
 };
 
@@ -234,14 +249,46 @@ const Dashboard: React.FC = () => {
   const [results, setResults] = useState<SimulationResults | null>(null);
   const [tuningErrors, setTuningErrors] = useState<TuningErrors>({});
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  const [recentRuns, setRecentRuns] = useState<RecentRun[]>([]);
 
   const [populationSize, setPopulationSize] = useState(2000);
-  const [sampleSize, setSampleSize] = useState(100);
-  const [simulationSteps, setSimulationSteps] = useState(12);
+  const [sampleSize, setSampleSize] = useState(800);
+  const [simulationSteps, setSimulationSteps] = useState(3);
   const [trainingEpochs, setTrainingEpochs] = useState(40);
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   const policyCharacterCount = policy.trim().length;
+
+  const fetchRecentRuns = async () => {
+    try {
+      const response = await axios.get(`${apiBaseUrl}/api/runs?limit=10`);
+      setRecentRuns(response.data.runs || []);
+    } catch (error) {
+      console.error('Failed to fetch recent runs:', error);
+    }
+  };
+
+  const handleLoadRun = async (runId: string) => {
+    setUiError(null);
+    setLoading(true);
+    try {
+      const response = await axios.get(`${apiBaseUrl}/api/runs/${runId}`);
+      setResults(response.data);
+      if (response.data.policy_text) {
+        setPolicy(response.data.policy_text);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      console.error(error);
+      setUiError('Failed to load the previous simulation run.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentRuns();
+  }, []);
 
   const policyPresets = [
     'Introduce targeted farming subsidies with digital market access support for rural smallholders.',
@@ -347,6 +394,7 @@ const Dashboard: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      fetchRecentRuns();
     }
   };
 
@@ -1413,26 +1461,6 @@ const Dashboard: React.FC = () => {
                 </motion.div>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
-                  <Card sx={cardSx}>
-                    <CardContent sx={cardContentSx}>
-                      <Typography variant="h5" sx={{ color: colors.text, mb: 2 }}>
-                        Income Trend
-                      </Typography>
-                      <Box sx={chartBoxSx}>
-                        {incomeSeries.length > 0 ? (
-                          <Line data={incomeData} options={lineChartOptions} />
-                        ) : (
-                          <Typography sx={{ color: colors.textMuted }}>
-                            No income trend data returned for this run.
-                          </Typography>
-                        )}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
                 <motion.div whileHover={{ scale: 1.01, y: -2 }} transition={{ duration: 0.22 }}>
@@ -1619,8 +1647,6 @@ const Dashboard: React.FC = () => {
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                         <Chip label={`Total: ${results.population_stats.total}`} sx={wrappedChipSx} />
-                        <Chip label={`Income start: Rs ${results.population_stats.avg_income_start.toFixed(0)}`} sx={wrappedChipSx} />
-                        <Chip label={`Income end: Rs ${results.population_stats.avg_income_end.toFixed(0)}`} sx={wrappedChipSx} />
                       </Box>
                       <Typography variant="subtitle2" sx={{ color: colors.text, mt: 1.5, mb: 0.8 }}>
                         Top caste groups in generated population
@@ -1676,7 +1702,7 @@ const Dashboard: React.FC = () => {
                             Citizen #{reaction.citizen_id} | {reaction.occupation} ({reaction.location})
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, mb: 0.4, ...wrappedTextSx }}>
-                            Happiness change: {reaction.happiness_change.toFixed(3)} | Support change: {reaction.support_change.toFixed(3)} | Income change: Rs {reaction.income_change.toFixed(0)}
+                            Happiness change: {reaction.happiness_change.toFixed(3)} | Support change: {reaction.support_change.toFixed(3)}
                           </Typography>
                           <Typography variant="body2" sx={{ color: colors.textMuted, ...wrappedTextSx }}>
                             {reaction.diary_entry}
@@ -1691,6 +1717,62 @@ const Dashboard: React.FC = () => {
             </Collapse>
           </motion.div>
         )}
+
+        <Box sx={{ mt: 4, mb: 4 }}>
+          <Typography variant="h5" sx={{ color: colors.text, mb: 3 }}>
+            Recent Simulation Runs
+          </Typography>
+          {recentRuns.length > 0 ? (
+            <Grid container spacing={2}>
+              {recentRuns.map((run) => (
+                  <Grid size={{ xs: 12, md: 6 }} key={run.run_id}>
+                    <Card sx={{ ...cardSx, minHeight: 'auto' }}>
+                      <CardContent sx={cardContentSx}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                          <Typography variant="subtitle2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                            Run ID: {run.run_id.substring(0, 8)}
+                          </Typography>
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            onClick={() => handleLoadRun(run.run_id)}
+                            disabled={loading}
+                            sx={{ borderColor: colors.accentBlue, color: colors.accentBlue, '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' } }}
+                          >
+                            Load This Run
+                          </Button>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: colors.textMuted, mb: 1.5 }}>
+                          {new Date(run.created_at).toLocaleString()}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.text, mb: 1.5, ...wrappedTextSx, opacity: 0.9 }}>
+                          "{run.policy_text.length > 100 ? run.policy_text.substring(0, 100) + '...' : run.policy_text}"
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                          <Chip label={`Pop: ${run.population_size || 'N/A'}`} sx={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: colors.text }} size="small" />
+                          <Chip label={`Sample: ${run.sample_size || 'N/A'}`} sx={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: colors.text }} size="small" />
+                          <Chip label={`Steps: ${run.steps || 'N/A'}`} sx={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: colors.text }} size="small" />
+                        </Box>
+                        <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: 'rgba(12, 24, 42, 0.55)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          <Typography variant="body2" sx={{ color: colors.text, ...wrappedTextSx }}>
+                            <strong>Domain:</strong> {run.domain || 'N/A'} <br />
+                            <strong>Recommendation:</strong> {run.recommendation || 'N/A'} <br />
+                            <strong>Final Happiness:</strong> {toDisplayPercent(run.final_happiness)} <br />
+                            <strong>Final Support:</strong> {toDisplayPercent(run.final_support)}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )
+              )}
+            </Grid>
+          ) : (
+            <Typography sx={{ color: colors.textMuted }}>
+              No recent simulation runs found. Run a simulation to see history here.
+            </Typography>
+          )}
+        </Box>
       </Container>
     </Box>
   );
