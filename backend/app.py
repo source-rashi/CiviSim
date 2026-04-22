@@ -23,6 +23,10 @@ from population.population_generator import generate_population
 from simulation.simulation_engine import run_simulation
 from utils.metrics import caste_distribution, occupation_distribution
 from backend.meta_agent import meta_agent
+from database.db import SimulationDB
+
+# Singleton DB — initialised once at startup
+_sim_db = SimulationDB()
 
 app = FastAPI()
 
@@ -52,8 +56,8 @@ app.add_middleware(
 class PolicyRequest(BaseModel):
     policy: str = Field(..., min_length=3, max_length=3000)
     population_size: int = Field(default=2000, ge=200, le=20000)
-    sample_size: int = Field(default=100, ge=20, le=600)
-    steps: int = Field(default=12, ge=3, le=80)
+    sample_size: int = Field(default=800, ge=20, le=2000)
+    steps: int = Field(default=3, ge=1, le=80)
     training_epochs: int = Field(default=40, ge=20, le=500)
     batch_size: int = Field(default=32, ge=4, le=256)
 
@@ -422,6 +426,36 @@ def get_audit(run_id: str):
     return run
 
 
+# ---------------------------------------------------------------------------
+# Simulation history — persistence endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/runs")
+def list_simulation_runs(limit: int = 30):
+    """Return a summary list of past simulation runs for the sidebar."""
+    safe_limit = max(1, min(limit, 200))
+    runs = _sim_db.list_runs(limit=safe_limit)
+    return {"runs": runs, "total": len(runs)}
+
+
+@app.get("/api/runs/{run_id}")
+def get_simulation_run(run_id: str):
+    """Return the full persisted payload for a given run_id (for replay)."""
+    run = _sim_db.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Simulation run not found.")
+    return run
+
+
+@app.delete("/api/runs/{run_id}")
+def delete_simulation_run(run_id: str):
+    """Delete a saved simulation run."""
+    success = _sim_db.delete_run(run_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Run not found or delete failed.")
+    return {"deleted": run_id}
+
+
 @app.post("/api/simulate", response_model=SimulationResponse)
 async def simulate(request: PolicyRequest):
     policy_text = request.policy.strip()
@@ -705,6 +739,8 @@ async def simulate(request: PolicyRequest):
             "support_trend": support_trend,
             "income_trend": income_trend,
             "population_stats": population_stats_data,
+            # Included so db.save_run() can access the raw policy text.
+            "policy_text": policy_text,
             "policy_analysis": {
                 "domain": parsed_policy.get("domain", "general"),
                 "mechanism": parsed_policy.get("mechanism", "general"),
@@ -766,6 +802,12 @@ async def simulate(request: PolicyRequest):
             },
         )
         response["meta_agent"] = meta_agent.build_response_summary(run_id=run_id, preview_events=12)
+
+        # ── Persist to SQLite (non-blocking best-effort) ──────────────────
+        try:
+            _sim_db.save_run(run_id, response)
+        except Exception as _db_exc:
+            logger.warning("SimulationDB.save_run failed (non-fatal): %s", _db_exc)
 
         return response
 
